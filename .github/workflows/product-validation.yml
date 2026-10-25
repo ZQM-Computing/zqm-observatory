@@ -7,6 +7,10 @@ on:
       - "docs/product-standard.md"
       - "templates/**"
       - "scripts/validate_products.py"
+      - "scripts/audit_arcgis_metadata.py"
+      - "tests/test_audit_arcgis_metadata.py"
+      - "scripts/audit_arcgis_metadata.py"
+      - "tests/test_audit_arcgis_metadata.py"
       - "tests/test_validate_products.py"
       - ".github/workflows/product-validation.yml"
   push:
