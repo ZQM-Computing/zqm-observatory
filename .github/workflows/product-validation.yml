@@ -8,6 +8,7 @@ on:
       - "docs/source-rights-review.md"
       - "docs/source-rights-register.md"
       - "docs/item-level-source-audit.md"
+      - "docs/metadata-only-source-preflight.md"
       - "config/source-rights.json"
       - "templates/**"
       - "scripts/validate_products.py"
