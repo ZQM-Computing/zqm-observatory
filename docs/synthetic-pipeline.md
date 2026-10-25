@@ -61,6 +61,23 @@ python scripts/compare_product_runs.py \\
 
 The report separates geometry movement above the chosen threshold from
 movement at or below it, and summarizes the number exceeding the threshold.
+Optionally supply a review-rules JSON file to classify changed features by
+severity. The example `config/change-review-rules.example.json` demonstrates
+low default severity, medium geometry severity, and high category-change severity:
+
+```sh
+python scripts/compare_product_runs.py \\
+  --before build/run-a/normalized.geojson \\
+  --after build/run-b/normalized.geojson \\
+  --rules-json config/change-review-rules.example.json \\
+  --output build/change-report/run-a-to-run-b.json
+```
+
+The report records the effective rules and SHA-256 of the supplied rules file;
+feature severity is the highest configured severity among its changed geometry
+and properties. Valid levels are `info`, `low`, `medium`, `high`, and
+`critical`. Severity is a configurable review-priority label, not a probability,
+risk determination, or automatic publication decision.
 Distance uses a spherical great-circle calculation and handles antimeridian
 crossings. The threshold is a review heuristic—not a positional-accuracy
 statement, a determination of real-world significance, or a release gate by
