@@ -13,6 +13,7 @@ From the repository root:
 python -m unittest discover -s tests -v
 python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
 python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product
+python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --after build/synthetic-product/normalized.geojson --output build/change-report/self-comparison.json
 python scripts/validate_source_rights.py
 python scripts/validate_products.py
 ```
@@ -29,6 +30,26 @@ and writes:
 
 Identical input bytes and pipeline version produce byte-identical artifacts.
 No build timestamp is inserted, so hashes remain useful for comparisons.
+
+## Compare two product runs
+
+Use `scripts/compare_product_runs.py` to compare two normalized GeoJSON files
+by stable `properties.id`, not row order. The report includes input hashes,
+added and removed IDs, changed feature IDs with before/after attribute values,
+geometry-change flags, counts, and before/after extents. For example:
+
+```sh
+python scripts/compare_product_runs.py \\
+  --before build/run-a/normalized.geojson \\
+  --after build/run-b/normalized.geojson \\
+  --output build/change-report/run-a-to-run-b.json
+```
+
+The command rejects malformed data, duplicate IDs, unsupported geometry types,
+and invalid coordinates rather than producing a partial report. Identical
+feature content in a different order is reported as unchanged. The report is a
+deterministic change inventory, not an assessment of operational significance,
+source rights, privacy risk, or publication eligibility.
 
 ## Product-bundle handoff
 
