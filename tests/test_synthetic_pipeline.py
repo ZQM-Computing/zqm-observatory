@@ -9,6 +9,7 @@ from scripts.build_synthetic_product import build, write_draft_bundle
 from scripts.verify_synthetic_provenance import verify
 from scripts.compare_product_runs import compare
 from scripts.validate_products import validate_product
+from scripts.evaluate_change_release import evaluate
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic-places.geojson"
@@ -283,6 +284,26 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertIsNone(report)
             self.assertTrue(any("severities must be" in error for error in errors), errors)
 
+
+    def test_release_gate_requires_run_ids_and_blocks_critical_changes(self) -> None:
+        report = {"inputs": {"before": {"run_id": "baseline-v1"}, "after": {"run_id": "candidate-v2"}}, "summary": {"removed_count": 0, "added_count": 0}, "changed_features": [{"id": "p1", "review_severity": "critical"}]}
+        rules = {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}
+        result, errors = evaluate(report, rules)
+        self.assertEqual(errors, [])
+        self.assertEqual(result["decision"], "blocked")
+        report["changed_features"] = []
+        result, errors = evaluate(report, rules)
+        self.assertEqual(errors, [])
+        self.assertEqual(result["decision"], "eligible_for_human_release_review")
+        del report["inputs"]["before"]["run_id"]
+        result, errors = evaluate(report, rules)
+        self.assertEqual(errors, [])
+        self.assertEqual(result["decision"], "blocked")
+
+    def test_release_gate_rejects_invalid_policy(self) -> None:
+        result, errors = evaluate({"inputs": {}, "summary": {}, "changed_features": []}, {"max_removed": -1})
+        self.assertIsNone(result)
+        self.assertTrue(any("non-negative integer" in e for e in errors))
 
 if __name__ == "__main__":
     unittest.main()
