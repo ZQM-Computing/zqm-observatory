@@ -83,7 +83,7 @@ class ProductValidationTests(unittest.TestCase):
         product_dir = self.make_product()
         path = product_dir / "product.json"
         product = json.loads(path.read_text(encoding="utf-8"))
-        product["data_files"] = ["..\\\\outside.csv"]
+        product["data_files"] = ["..\\outside.csv"]
         path.write_text(json.dumps(product), encoding="utf-8")
         errors = validate_product(product_dir)
         self.assertTrue(any("unsafe data_files entry" in error for error in errors))
