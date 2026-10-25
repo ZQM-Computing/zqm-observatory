@@ -99,9 +99,37 @@ def extent(features: dict[str, dict[str, Any]]) -> list[float] | None:
     return [min(longitudes), min(latitudes), max(longitudes), max(latitudes)]
 
 
-def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0) -> tuple[dict[str, Any] | None, list[str]]:
+SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+DEFAULT_REVIEW_RULES: dict[str, Any] = {"default": "low", "geometry": "medium", "properties": {}}
+
+
+def load_review_rules(path: Path | None) -> tuple[dict[str, Any] | None, str | None, str | None]:
+    if path is None:
+        return DEFAULT_REVIEW_RULES, None, None
+    try:
+        raw = path.read_bytes()
+        rules = json.loads(raw.decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return None, None, f"cannot read valid review rules JSON: {exc}"
+    if not isinstance(rules, dict) or set(rules) - {"default", "geometry", "properties"}:
+        return None, None, "review rules must be an object with only default, geometry, and properties keys"
+    rules = {"default": rules.get("default", "low"), "geometry": rules.get("geometry", "medium"), "properties": rules.get("properties", {})}
+    if rules["default"] not in SEVERITY_RANK or rules["geometry"] not in SEVERITY_RANK:
+        return None, None, "default and geometry severities must be info, low, medium, high, or critical"
+    if not isinstance(rules["properties"], dict):
+        return None, None, "properties rules must be an object mapping property names to severities"
+    for key, severity in rules["properties"].items():
+        if not isinstance(key, str) or severity not in SEVERITY_RANK:
+            return None, None, "each property rule must map a string property name to info, low, medium, high, or critical"
+    return rules, hashlib.sha256(raw).hexdigest(), None
+
+
+def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0, rules_path: Path | None = None) -> tuple[dict[str, Any] | None, list[str]]:
     if not math.isfinite(movement_threshold_m) or movement_threshold_m < 0:
         return None, ["movement threshold must be a finite non-negative number"]
+    rules, rules_sha256, rules_error = load_review_rules(rules_path)
+    if rules_error or rules is None:
+        return None, [rules_error or "review rules are invalid"]
     before, before_errors, before_load_error = load_features(before_path)
     after, after_errors, after_load_error = load_features(after_path)
     errors: list[str] = []
@@ -128,6 +156,9 @@ def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0
             if old["properties"].get(key) != new["properties"].get(key)
         }
         if geometry_changed or changed_properties:
+            severities = [rules["geometry"]] if geometry_changed else []
+            severities.extend(rules["properties"].get(key, rules["default"]) for key in changed_properties)
+            severity = max(severities, key=lambda item: SEVERITY_RANK[item]) if severities else rules["default"]
             changed.append({
                 "id": feature_id,
                 "geometry_changed": geometry_changed,
@@ -135,6 +166,7 @@ def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0
                 "movement_threshold_meters": movement_threshold_m if geometry_changed else None,
                 "movement_exceeds_threshold": movement_m > movement_threshold_m if geometry_changed else False,
                 "change_class": ("geometry_moved_above_threshold" if movement_m > movement_threshold_m else "geometry_moved_at_or_below_threshold") if geometry_changed else "attributes_changed",
+                "review_severity": severity,
                 "changed_properties": changed_properties,
             })
 
@@ -146,6 +178,7 @@ def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0
             "before": {"path": before_path.name, "sha256": sha256_file(before_path)},
             "after": {"path": after_path.name, "sha256": sha256_file(after_path)},
         },
+        "review_configuration": {"default_severity": rules["default"], "geometry_severity": rules["geometry"], "property_severities": rules["properties"], "rules_sha256": rules_sha256},
         "summary": {
             "feature_count_before": len(before),
             "feature_count_after": len(after),
@@ -177,8 +210,9 @@ def main() -> int:
     parser.add_argument("--after", required=True, type=Path, help="later normalized GeoJSON")
     parser.add_argument("--output", required=True, type=Path, help="path for the JSON change report")
     parser.add_argument("--movement-threshold-meters", type=float, default=0.0, help="heuristic great-circle movement threshold in meters (default: 0; not a significance or accuracy claim)")
+    parser.add_argument("--rules-json", type=Path, help="optional JSON review rules mapping changed fields to review severities")
     args = parser.parse_args()
-    report, errors = compare(args.before, args.after, args.movement_threshold_meters)
+    report, errors = compare(args.before, args.after, args.movement_threshold_meters, args.rules_json)
     if errors or report is None:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
