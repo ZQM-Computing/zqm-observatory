@@ -15,6 +15,8 @@ on:
       - "config/source-rights.json"
       - "templates/**"
       - "scripts/validate_products.py"
+      - "scripts/build_synthetic_product.py"
+      - "docs/synthetic-pipeline.md"
       - "scripts/validate_source_rights.py"
       - "scripts/audit_source_metadata.py"
       - "tests/**"
@@ -58,3 +60,5 @@ jobs:
         run: python scripts/audit_source_metadata.py --help
       - name: Validate published product bundles
         run: python scripts/validate_products.py
+      - name: Run deterministic synthetic pipeline
+        run: python scripts/build_synthetic_product.py --output-dir build/synthetic-product
