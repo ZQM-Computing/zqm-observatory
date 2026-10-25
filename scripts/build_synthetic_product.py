@@ -10,12 +10,14 @@ import argparse
 import hashlib
 import json
 import math
+import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
 PIPELINE_VERSION = "0.1.0"
 REQUIRED_PROPERTIES = {"id", "name", "category"}
+DEMO_PRODUCT_ID = "2026-10-25-synthetic-geospatial-demo"
 
 
 def canonical_json(value: Any) -> bytes:
@@ -198,12 +200,86 @@ def build(input_path: Path, output_dir: Path) -> int:
     return 0
 
 
+
+def write_draft_bundle(output_dir: Path, bundle_root: Path) -> Path:
+    """Package outputs as a standards-shaped draft that remains review-blocked."""
+    bundle = bundle_root / DEMO_PRODUCT_ID
+    bundle.mkdir(parents=True, exist_ok=True)
+    asset_names = ("normalized.geojson", "qa-report.json", "provenance.json")
+    for name in asset_names:
+        shutil.copyfile(output_dir / name, bundle / name)
+
+    product = {
+        "schema_version": 1,
+        "product_id": DEMO_PRODUCT_ID,
+        "title": "Synthetic geospatial pipeline demonstration (not for publication)",
+        "publication_date": "2026-10-25",
+        "geographic_scope": "Synthetic coordinates only; not a representation of Volusia County or any real place.",
+        "summary": "An invented three-feature fixture used to exercise the Observatory pipeline, QA reporting, and provenance contract. It supports no real-world claims.",
+        "license": "CC0 1.0 for the invented demonstration content only; no third-party source data is included.",
+        "source_ids": ["observatory-synthetic-fixture"],
+        "data_files": list(asset_names),
+        "field_verification": {
+            "status": "not_applicable",
+            "notes": "All features and coordinates are synthetic; no real place or field condition is represented."
+        },
+        "privacy_review": {
+            "reviewed": False,
+            "reviewed_by": "",
+            "review_date": "2026-10-25",
+            "individual_level_data": False,
+            "personal_data": False,
+            "children_identifiable_data": False
+        }
+    }
+    sources = [{
+        "id": "observatory-synthetic-fixture",
+        "title": "ZQM Observatory synthetic fixture",
+        "publisher": "ZQM-Computing/zqm-observatory",
+        "url": "https://github.com/ZQM-Computing/zqm-observatory/blob/main/tests/fixtures/synthetic-places.geojson",
+        "retrieval_date": "2026-10-25",
+        "license": "CC0 1.0 for invented fixture content; no external data collected",
+        "supports": ["The invented feature attributes and coordinates used in this engineering demonstration."]
+    }]
+    method = """# Method
+
+## Question and intended use
+
+This bundle tests the Observatory's synthetic processing, validation, and provenance path. It is not a real-world geospatial product and must not support location, safety, access, or service claims.
+
+## Inputs and processing
+
+The only input is the repository's invented GeoJSON fixture. The pipeline checks FeatureCollection structure, required string attributes, unique IDs, Point geometries, and finite WGS84 longitude/latitude ranges. It sorts features by identifier and serializes JSON deterministically.
+
+## Quality and provenance
+
+The QA report records structural checks, feature counts, geometry types, and bounding box. provenance.json records SHA-256 hashes for input and normalized output. Tests exercise malformed JSON, duplicate IDs, invalid coordinates, invalid property types, deterministic output, and stale-output cleanup.
+
+## Field verification, privacy, and rights
+
+All data is synthetic; no external source was collected and no field conditions are represented. This draft intentionally leaves the human privacy review incomplete. The bundle must fail the publication structural gate until a reviewer records the required review. Passing pipeline checks is not publication approval.
+
+## Reproduction and limitations
+
+Run `python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle`. Outputs are deterministic for identical input bytes and pipeline version. This fixture does not validate real source licensing, real-world accuracy, geometry topology, or scientific suitability.
+"""
+    (bundle / "product.json").write_bytes(canonical_json(product))
+    (bundle / "sources.json").write_bytes(canonical_json(sources))
+    (bundle / "method.md").write_text(method, encoding="utf-8")
+    return bundle
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=Path("tests/fixtures/synthetic-places.geojson"))
     parser.add_argument("--output-dir", type=Path, default=Path("build/synthetic-product"))
+    parser.add_argument("--bundle-dir", type=Path, help="optional root directory for a standards-shaped, review-blocked draft bundle")
     args = parser.parse_args()
-    return build(args.input, args.output_dir)
+    result = build(args.input, args.output_dir)
+    if result == 0 and args.bundle_dir is not None:
+        bundle = write_draft_bundle(args.output_dir, args.bundle_dir)
+        print(f"Draft product bundle created at {bundle}; publication remains blocked pending human privacy review.")
+    return result
 
 
 if __name__ == "__main__":

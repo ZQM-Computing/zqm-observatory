@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_synthetic_product import build
+from scripts.build_synthetic_product import build, write_draft_bundle
+from scripts.validate_products import validate_product
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "synthetic-places.geojson"
@@ -90,6 +91,26 @@ class SyntheticPipelineTests(unittest.TestCase):
             qa = json.loads((output / "qa-report.json").read_text(encoding="utf-8"))
             self.assertTrue(any("properties.name must be a non-empty string" in e for e in qa["errors"]))
             self.assertFalse((output / "normalized.geojson").exists())
+
+    def test_draft_bundle_matches_product_contract_but_fails_closed_for_review(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            artifacts = root / "artifacts"
+            bundle_root = root / "bundles"
+            self.assertEqual(build(FIXTURE, artifacts), 0)
+            bundle = write_draft_bundle(artifacts, bundle_root)
+            expected = {
+                "product.json", "sources.json", "method.md",
+                "normalized.geojson", "qa-report.json", "provenance.json",
+            }
+            self.assertEqual({item.name for item in bundle.iterdir()}, expected)
+            product = json.loads((bundle / "product.json").read_text(encoding="utf-8"))
+            self.assertEqual(set(product["data_files"]), {"normalized.geojson", "qa-report.json", "provenance.json"})
+            self.assertFalse(product["privacy_review"]["reviewed"])
+            errors = validate_product(bundle)
+            self.assertTrue(any("privacy_review.reviewed must be true" in error for error in errors))
+            self.assertTrue(any("privacy_review.reviewed_by must be a non-empty string" in error for error in errors))
+            self.assertEqual(len(errors), 2, errors)
 
 
 if __name__ == "__main__":
