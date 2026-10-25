@@ -11,56 +11,52 @@ The Observatory is focused on:
 
 - **Safety** — safe places and routes, and the conditions that make them safe.
 - **Situational awareness** — what is happening around you right now.
-- **Operational awareness** — the state of the systems, services, and activities
-  you depend on.
-- **Security awareness** — threats and risks, as one of the three awarenesses,
-  not the whole.
-- **Family values** — family-friendly places and activities, and products a
-  family can use and trust.
+- **Operational awareness** — the state of the systems, services, and activities you depend on.
+- **Security awareness** — threats and risks, as one of the three awarenesses, not the whole.
+- **Family values** — family-friendly places and activities, and products a family can use and trust.
 
 ## Principles
 
 1. **Public/open sources only.** No credentialed, paywalled, or private data.
-2. **Passive-only against third parties.** Active tools run on owned or
-   authorized targets only.
+2. **Passive-only against third parties.** Active tools run on owned or authorized targets only.
 3. **Verify before claim.** Source, retrieval date, and method on every product.
 4. **No purchases, ever.** The entire stack is free and open-source.
-5. **Privacy and product separation.** Report only sourced public-place facts
-   and appropriately aggregated public data. No individual tracks, personal
-   data, or identifiable children's data. ZQM Labs game telemetry is outside
-   Observatory scope and is not ingested, joined, or used as evidence.
+5. **Privacy and product separation.** Place intelligence is built from public data and field verification, reported only as aggregates. No individual tracks, personal data, or identifiable children's data.
 
 ## What it ships
 
 - Living map layers (OGC + tiles) and a STAC imagery catalog.
 - A weekly intel digest (dated report).
-- Community briefs — safety, situational, operational, and family-life
-  intelligence for communities.
-- Family guides — sourced public places and activities, with access
-  details and conditions clearly distinguished between published claims and
-  field-verified observations.
-- Reproducible source registers, capture metadata, geospatial QA reports, and
-  correction histories that let others audit how a claim was produced.
-- Demos, dashboards, and public methods — code, pipelines, and documentation
-  other practitioners can reuse.
+- Community briefs — safety, situational, operational, and family-life intelligence for communities.
+- Family guides — sourced public places and activities, with access details and conditions clearly distinguished between published claims and field-verified observations.
+- Reproducible source registers, capture metadata, geospatial QA reports, and correction histories that let others audit how a claim was produced.
+- Demos, dashboards, and public methods — code, pipelines, and documentation other practitioners can reuse.
 
 ## Status
 
-**Stage 0 — build-out in progress.** The fleet stack (PostGIS, GeoServer,
-orchestration, collection, and intelligence tooling) is being installed node by
-node. Nothing here is a live service yet; products land here as they are
-verified, dated, and sourced.
+**Stage 0 — build-out in progress.** The fleet stack (PostGIS, GeoServer, orchestration, collection, and intelligence tooling) is being installed node by node. Nothing here is a live service yet; products land here as they are verified, dated, and sourced.
+
+## Quick start: validate the repository
+
+The repository can be reviewed and its governance checks run without connecting to a data source or collecting any source records. Requires Python 3.
+
+```sh
+python -m unittest discover -s tests -v
+python scripts/validate_source_rights.py
+python scripts/validate_products.py
+```
+
+A clean validation run confirms structural checks only. It does **not** clear source licenses, establish factual accuracy, prove privacy safety, or authorize publication. Unknown source permissions remain blocked. See the [first-product release gate](docs/first-product-release-gate.md) before proposing a product.
 
 ## How questions flow
 
-Every question travels the same cycle: Direction → Collection → Processing →
-Analysis → Dissemination → Feedback → Governance. The software exists to serve
-the cycle, not the other way around.
+Every question travels the same cycle: Direction → Collection → Processing → Analysis → Dissemination → Feedback → Governance. The software exists to serve the cycle, not the other way around.
 
 ## What lives here
 
 - [Scope](docs/scope.md): what the Observatory covers, and where it starts.
 - [Methods](docs/methods.md): how a product is built and verified.
+- [First-product release gate](docs/first-product-release-gate.md): the operational checklist from question selection through independent review and publication decision.
 - [Geospatial repository integration map](docs/geospatial-repository-integration.md): recommended handoffs across ZQM Computing's geospatial tools, with implementation status stated explicitly.
 - [Geospatial Cookbooks index](https://github.com/ZQM-Computing/geospatial-cookbooks): the independent cookbook and reference-repository catalog.
 - [Data sources](docs/data-sources.md): the public source categories products draw on.
