@@ -74,7 +74,7 @@ A first offline end-to-end pipeline is available for engineering and CI validati
 python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
 ```
 
-It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`, then packages a standards-shaped draft under `build/synthetic-product-bundle/`. The draft intentionally fails the publication gate until a human privacy review is recorded; it is not a publishable product. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
+It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`, then packages a standards-shaped draft under `build/synthetic-product-bundle/`. The draft intentionally fails the publication gate until a human privacy review is recorded; it is not a publishable product. Run `python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product` to check that the recorded input, pipeline source, normalized output, and QA report hashes still match. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
 
 ## First-product release workflow
 
