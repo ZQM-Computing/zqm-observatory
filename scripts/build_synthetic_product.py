@@ -182,6 +182,10 @@ def build(input_path: Path, output_dir: Path) -> int:
         "schema_version": 1,
         "pipeline": "zqm-observatory-synthetic-pipeline",
         "pipeline_version": PIPELINE_VERSION,
+        "pipeline_source": {
+            "path": Path(__file__).name,
+            "sha256": sha256_bytes(Path(__file__).read_bytes()),
+        },
         "input": {
             "path": input_path.name,
             "sha256": sha256_bytes(raw),
@@ -190,6 +194,10 @@ def build(input_path: Path, output_dir: Path) -> int:
         "output": {
             "path": "normalized.geojson",
             "sha256": sha256_bytes(normalized_bytes),
+        },
+        "qa_report": {
+            "path": "qa-report.json",
+            "sha256": sha256_bytes(canonical_json(qa)),
         },
         "reproducibility": "Deterministic for identical input bytes and pipeline version.",
         "publication_authorized": False,
