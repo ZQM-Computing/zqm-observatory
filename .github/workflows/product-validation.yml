@@ -5,18 +5,26 @@ on:
     paths:
       - "data/**"
       - "docs/product-standard.md"
+      - "docs/source-rights-review.md"
+      - "docs/item-level-source-audit.md"
+      - "config/source-rights.json"
       - "templates/**"
       - "scripts/validate_products.py"
-      - "tests/test_validate_products.py"
+      - "scripts/validate_source_rights.py"
+      - "tests/**"
       - ".github/workflows/product-validation.yml"
   push:
     branches: [main]
     paths:
       - "data/**"
       - "docs/product-standard.md"
+      - "docs/source-rights-review.md"
+      - "docs/item-level-source-audit.md"
+      - "config/source-rights.json"
       - "templates/**"
       - "scripts/validate_products.py"
-      - "tests/test_validate_products.py"
+      - "scripts/validate_source_rights.py"
+      - "tests/**"
       - ".github/workflows/product-validation.yml"
 
 permissions:
@@ -32,5 +40,7 @@ jobs:
           python-version: "3.12"
       - name: Run validator unit tests
         run: python -m unittest discover -s tests -v
+      - name: Validate source rights register
+        run: python scripts/validate_source_rights.py
       - name: Validate published product bundles
         run: python scripts/validate_products.py
