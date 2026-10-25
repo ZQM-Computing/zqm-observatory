@@ -10,6 +10,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from scripts.baseline_registry import verify_entry
+except ModuleNotFoundError:  # Direct script execution puts scripts/ on sys.path.
+    from baseline_registry import verify_entry
+
 
 def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
@@ -124,11 +129,20 @@ def load_review_rules(path: Path | None) -> tuple[dict[str, Any] | None, str | N
     return rules, hashlib.sha256(raw).hexdigest(), None
 
 
-def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0, rules_path: Path | None = None, before_id: str | None = None, after_id: str | None = None) -> tuple[dict[str, Any] | None, list[str]]:
+def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0, rules_path: Path | None = None, before_id: str | None = None, after_id: str | None = None, registry_path: Path | None = None) -> tuple[dict[str, Any] | None, list[str]]:
     if not math.isfinite(movement_threshold_m) or movement_threshold_m < 0:
         return None, ["movement threshold must be a finite non-negative number"]
     if (before_id is not None and not before_id.strip()) or (after_id is not None and not after_id.strip()):
         return None, ["run identifiers, when supplied, must be non-empty strings"]
+    if registry_path is not None:
+        if not before_id or not after_id:
+            return None, ["--registry requires both --before-id and --after-id"]
+        _, registry_errors = verify_entry(registry_path, before_id, before_path)
+        if registry_errors:
+            return None, [f"baseline registry: {error}" for error in registry_errors]
+        _, registry_errors = verify_entry(registry_path, after_id, after_path)
+        if registry_errors:
+            return None, [f"candidate registry: {error}" for error in registry_errors]
     rules, rules_sha256, rules_error = load_review_rules(rules_path)
     if rules_error or rules is None:
         return None, [rules_error or "review rules are invalid"]
@@ -215,8 +229,9 @@ def main() -> int:
     parser.add_argument("--rules-json", type=Path, help="optional JSON review rules mapping changed fields to review severities")
     parser.add_argument("--before-id", help="explicit immutable/versioned identifier for the baseline run")
     parser.add_argument("--after-id", help="explicit immutable/versioned identifier for the candidate run")
+    parser.add_argument("--registry", type=Path, help="content-hash registry used to verify both run IDs against input files")
     args = parser.parse_args()
-    report, errors = compare(args.before, args.after, args.movement_threshold_meters, args.rules_json, args.before_id, args.after_id)
+    report, errors = compare(args.before, args.after, args.movement_threshold_meters, args.rules_json, args.before_id, args.after_id, args.registry)
     if errors or report is None:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1

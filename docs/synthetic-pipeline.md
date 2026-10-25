@@ -121,3 +121,15 @@ python scripts/evaluate_change_release.py --report build/change-report/change.js
 ```
 
 The example policy requires both run IDs, blocks critical-severity changes, and blocks any removals. The evaluator exits 2 when policy blocks the candidate, 1 for invalid inputs/policy, and 0 when eligible for human release review. Eligibility is not publication authorization: source rights, data quality, factual review, privacy, and product-owner approval remain independent gates. IDs are supplied labels; content hashes are not digital signatures.
+
+## Content-addressed baseline registry
+
+The registry binds a stable run ID to the exact dataset file hash, pipeline version, and a description. Register each dataset version once; the CLI rejects attempts to reuse a run ID. A changed file must receive a new ID. The JSON registry is not a signed ledger: protect write access and preserve reviewed copies for stronger audit history.
+
+```sh
+python scripts/baseline_registry.py register --registry build/baseline-registry.json --run-id places-v1 --dataset build/run-a/normalized.geojson --pipeline-version 0.1.0 --description "Reviewed baseline dataset"
+python scripts/baseline_registry.py register --registry build/baseline-registry.json --run-id places-v2 --dataset build/run-b/normalized.geojson --pipeline-version 0.1.0 --description "Candidate dataset for review"
+python scripts/compare_product_runs.py --before build/run-a/normalized.geojson --before-id places-v1 --after build/run-b/normalized.geojson --after-id places-v2 --registry build/baseline-registry.json --output build/change-report/change.json
+```
+
+With `--registry`, comparisons require both run IDs to exist and both file hashes to match. Missing IDs, unknown versions, malformed registries, or content drift fail closed. This does not prove source authority or who approved a run; those remain separate controls.

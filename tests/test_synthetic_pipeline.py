@@ -305,5 +305,34 @@ class SyntheticPipelineTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertTrue(any("non-negative integer" in e for e in errors))
 
+
+    def test_baseline_registry_immutability_and_hash_drift(self) -> None:
+        from scripts.baseline_registry import main as registry_main, verify_entry
+        from unittest.mock import patch
+        import contextlib, io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); registry = root / "registry.json"; dataset = root / "data.geojson"
+            dataset.write_bytes(FIXTURE.read_bytes())
+            argv = ["baseline_registry.py", "register", "--registry", str(registry), "--run-id", "places-v1", "--dataset", str(dataset), "--pipeline-version", "0.1.0", "--description", "reviewed fixture"]
+            with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()): self.assertEqual(registry_main(), 0)
+            entry, errors = verify_entry(registry, "places-v1", dataset)
+            self.assertEqual(errors, []); self.assertEqual(entry["run_id"], "places-v1")
+            with patch("sys.argv", argv), contextlib.redirect_stderr(io.StringIO()): self.assertEqual(registry_main(), 1)
+            dataset.write_text(dataset.read_text(encoding="utf-8") + " ", encoding="utf-8")
+            entry, errors = verify_entry(registry, "places-v1", dataset)
+            self.assertIsNone(entry); self.assertTrue(any("hash mismatch" in e for e in errors))
+
+    def test_change_comparison_rejects_unregistered_candidate(self) -> None:
+        from scripts.baseline_registry import main as registry_main
+        from unittest.mock import patch
+        import contextlib, io
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp); registry = root / "registry.json"; before = root / "before.geojson"; after = root / "after.geojson"
+            before.write_bytes(FIXTURE.read_bytes()); after.write_bytes(FIXTURE.read_bytes())
+            argv = ["baseline_registry.py", "register", "--registry", str(registry), "--run-id", "baseline-v1", "--dataset", str(before), "--pipeline-version", "0.1.0", "--description", "baseline"]
+            with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()): self.assertEqual(registry_main(), 0)
+            report, errors = compare(before, after, before_id="baseline-v1", after_id="candidate-v1", registry_path=registry)
+            self.assertIsNone(report); self.assertTrue(any("not registered" in e for e in errors))
+
 if __name__ == "__main__":
     unittest.main()
