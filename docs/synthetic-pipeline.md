@@ -47,9 +47,25 @@ python scripts/compare_product_runs.py \\
 
 The command rejects malformed data, duplicate IDs, unsupported geometry types,
 and invalid coordinates rather than producing a partial report. Identical
-feature content in a different order is reported as unchanged. The report is a
-deterministic change inventory, not an assessment of operational significance,
-source rights, privacy risk, or publication eligibility.
+feature content in a different order is reported as unchanged. For geometry
+changes, it also reports great-circle movement in meters and applies a
+configurable threshold for triage (default 0 meters):
+
+```sh
+python scripts/compare_product_runs.py \\
+  --before build/run-a/normalized.geojson \\
+  --after build/run-b/normalized.geojson \\
+  --movement-threshold-meters 25 \\
+  --output build/change-report/run-a-to-run-b.json
+```
+
+The report separates geometry movement above the chosen threshold from
+movement at or below it, and summarizes the number exceeding the threshold.
+Distance uses a spherical great-circle calculation and handles antimeridian
+crossings. The threshold is a review heuristic—not a positional-accuracy
+statement, a determination of real-world significance, or a release gate by
+itself. The report does not establish source rights, privacy approval, or
+publication eligibility.
 
 ## Product-bundle handoff
 
