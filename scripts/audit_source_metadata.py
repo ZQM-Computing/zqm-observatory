@@ -55,9 +55,11 @@ def summarize_metadata(payload: Any) -> dict[str, Any]:
     # A metadata endpoint returning feature payloads is unexpected and must fail closed.
     if "features" in payload:
         raise ValueError("response unexpectedly contains feature records; refusing to treat it as metadata")
+    if not isinstance(payload.get("id"), int) or not isinstance(payload.get("name"), str) or not payload["name"].strip():
+        raise ValueError("response lacks a valid layer id or name")
     fields = payload.get("fields", [])
-    if not isinstance(fields, list):
-        raise ValueError("metadata fields member is not an array")
+    if not isinstance(fields, list) or any(not isinstance(field, dict) or not isinstance(field.get("name"), str) for field in fields):
+        raise ValueError("metadata fields member must be an array of named field objects")
     return {
         "layer_id": payload.get("id"),
         "name": payload.get("name"),
