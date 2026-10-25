@@ -19,14 +19,53 @@ The County's current public VOTRAN document index lists a GTFS feed effective **
 
 ## Item-by-item decision matrix
 
-| Item | Observed metadata | Main quality / semantic risks | Rights state and decision |
-|---|---|---|---|
-| Park Locations (layer 4) | Point geometry; display field Name. Fields include REF, Name, Address, CityName, Zip, Phone, Type, URL, Status, Acres, and amenity fields Restrooms, Playground, Fields, Courts, Trails, Sidewalk, PicnicFac, SkatePark, DogPark, Pier, BoatRamp, Canoe, DiscGolf, SplashPad, Parking, Concession, Shed, NoBenches, and NoTrashRec. Description and copyright fields are blank. | Amenity indicators are strings, not typed booleans; distinct values and null/empty conventions are unknown. Status semantics and stewardship scope are undocumented. A point is not an entrance. A GIS listing does not prove current hours, availability, accessibility, or ownership. | BLOCKED_PENDING_REVIEW. Candidate only. After rights permit inspection, profile distinct values, nulls, duplicate names/REFs, coordinate offsets, and directory discrepancies. |
-| Park Boundaries (layer 2) | Polygon geometry; fields include Name, Address, CityName, Zip, Type, REF, Owner, MaintAuth, URL, Acres, Acreage, ParkID, created_date, last_edited_date, Shape__Area, and Shape__Length. Description and copyright fields are blank. | A park boundary is not a cadastral/legal boundary, property title, public easement, or access authorization. Acres and Acreage may disagree; independently calculate area in a suitable projected CRS. Test multipart/invalid polygons, overlaps, slivers, duplicate ParkID, and point-in-polygon mismatch. Owner and maintenance authority are distinct concepts. | BLOCKED_PENDING_REVIEW. Candidate only. Preserve source area fields and add independent QA fields; never label as legal property boundaries. |
-| Trails (layer 32) | Polyline geometry; fields include OBJECTID_1, Name, Name2, Name3, Type, SubType, Surface, Width_Ft, Seg_Miles, URL, TrailName, REF, miles, MaintainedBy, Owner, and Shape__Length. Description and copyright are blank; max record count is 2,000 and pagination is supported. | Record samples have not established the meaning of type/subtype values. Seg_Miles, miles, and Shape__Length may reflect different calculations/units and require reconciliation. Geometry does not prove public access, continuity, construction, maintenance, open status, safety, or accessibility. Object IDs are not stable cross-version identifiers. | BLOCKED_PENDING_REVIEW. Highest-priority candidate for future technical QA, but no collection for publication until terms are resolved. |
-| VOTRAN Bus Stops (layer 33) | Point geometry. Description says “Votran Bus Stops downloaded 02/2023 and created using ESRI Streets and the GTFS tool in ArcGIS Pro.” Copyright text says VOTRAN. Fields include shape_id, sequence, stop_id, stop_code, stop_name, stop_desc, stop_lat, stop_lon, stop_url, location_type, parent_station, and wheelchair_boarding. | Explicit February 2023 vintage is stale for current service. wheelchair_boarding is typed as a string and needs GTFS-spec interpretation. Reconcile stop IDs, coordinates, parent stations, inactive/relocated stops, and name changes. A stop point does not establish safe crossings, shelter, sidewalk, boarding conditions, or an accessible path. | BLOCKED_PENDING_REVIEW. Do not use as current stops. Prefer a newly captured official GTFS version after rights are confirmed and the feed validates. |
-| VOTRAN Bus Routes (layer 37) | Polyline geometry. Description says routes were downloaded 02/2023 and created using ESRI Streets plus the GTFS tool in ArcGIS Pro. Copyright text says VOTRAN. Fields include shape_id, route_id, agency_id, route_short_name, route_long_name, route_desc, route_type, route_url, route_color, route_text_color, route_sort_order, and route_type_text. | February 2023 vintage. Derived street geometry method and source version are not fully recorded. Geometry alone does not establish active trips, time of day, direction, calendar, stop sequence, or current service. Route IDs and shapes may change. | BLOCKED_PENDING_REVIEW. Do not use for current route/service claims. Prefer a rights-cleared current GTFS feed and keep schedule validity separate from geometry validation. |
-| Trail Features (layer 30; related candidate) | Point geometry; description states “County and City parks within Volusia County”; fields include LastEdit, EditBy, X_Coord, Y_Coord, REF, Trail_Ref, Trail_Ref2, Trail_Ref3. Copyright is blank. | Name suggests trails, but description and fields suggest park locations/references. Do not call these trailheads or access points based on name alone. Compare with Park Locations before considering use. | BLOCKED_PENDING_REVIEW. Exclude from trail inventory pending semantic and rights evidence. |
+### Park Locations (layer 4) — candidate only; rights blocked
+
+**Observed metadata:** Point geometry; display field Name. Fields include REF, Name, Address, CityName, Zip, Phone, Type, URL, Status, Acres, and amenity fields Restrooms, Playground, Fields, Courts, Trails, Sidewalk, PicnicFac, SkatePark, DogPark, Pier, BoatRamp, Canoe, DiscGolf, SplashPad, Parking, Concession, Shed, NoBenches, and NoTrashRec. Description and copyright fields are blank.
+
+**Risks:** Amenity indicators are strings, not typed booleans; distinct values and null/empty conventions are unknown. Status semantics and stewardship scope are undocumented. A point is not an entrance. A GIS listing does not prove current hours, availability, accessibility, or ownership.
+
+**Decision:** BLOCKED_PENDING_REVIEW. After rights permit inspection, profile distinct values, nulls, duplicate names/REFs, coordinate offsets, and directory discrepancies.
+
+### Park Boundaries (layer 2) — candidate only; rights blocked
+
+**Observed metadata:** Polygon geometry; fields include Name, Address, CityName, Zip, Type, REF, Owner, MaintAuth, URL, Acres, Acreage, ParkID, created_date, last_edited_date, Shape__Area, and Shape__Length. Description and copyright fields are blank.
+
+**Risks:** A park boundary is not a cadastral/legal boundary, property title, public easement, or access authorization. Acres and Acreage may disagree; independently calculate area in a suitable projected CRS. Test multipart/invalid polygons, overlaps, slivers, duplicate ParkID, and point-in-polygon mismatch. Owner and maintenance authority are distinct concepts.
+
+**Decision:** BLOCKED_PENDING_REVIEW. Preserve source area fields and add independent QA fields; never label as legal property boundaries.
+
+### Trails (layer 32) — highest-priority trail candidate; rights blocked
+
+**Observed metadata:** Polyline geometry; fields include OBJECTID_1, Name, Name2, Name3, Type, SubType, Surface, Width_Ft, Seg_Miles, URL, TrailName, REF, miles, MaintainedBy, Owner, and Shape__Length. Description and copyright are blank; max record count is 2,000 and pagination is supported.
+
+**Risks:** Record samples have not established the meaning of type/subtype values. Seg_Miles, miles, and Shape__Length may reflect different calculations/units and require reconciliation. Geometry does not prove public access, continuity, construction, maintenance, open status, safety, or accessibility. Object IDs are not stable cross-version identifiers.
+
+**Decision:** BLOCKED_PENDING_REVIEW. Do not collect for publication until terms are resolved.
+
+### VOTRAN Bus Stops (layer 33) — stale; do not use for current service
+
+**Observed metadata:** Point geometry. Description says “Votran Bus Stops downloaded 02/2023 and created using ESRI Streets and the GTFS tool in ArcGIS Pro.” Copyright text says VOTRAN. Fields include shape_id, sequence, stop_id, stop_code, stop_name, stop_desc, stop_lat, stop_lon, stop_url, location_type, parent_station, and wheelchair_boarding.
+
+**Risks:** Explicit February 2023 vintage is stale for current service. wheelchair_boarding is typed as a string and needs GTFS-spec interpretation. Reconcile stop IDs, coordinates, parent stations, inactive/relocated stops, and name changes. A stop point does not establish safe crossings, shelter, sidewalk, boarding conditions, or an accessible path.
+
+**Decision:** BLOCKED_PENDING_REVIEW. Do not use as current stops. Prefer a newly captured official GTFS version after rights are confirmed and the feed validates.
+
+### VOTRAN Bus Routes (layer 37) — stale; do not use for current service
+
+**Observed metadata:** Polyline geometry. Description says routes were downloaded 02/2023 and created using ESRI Streets plus the GTFS tool in ArcGIS Pro. Copyright text says VOTRAN. Fields include shape_id, route_id, agency_id, route_short_name, route_long_name, route_desc, route_type, route_url, route_color, route_text_color, route_sort_order, and route_type_text.
+
+**Risks:** February 2023 vintage. Derived street geometry method and source version are not fully recorded. Geometry alone does not establish active trips, time of day, direction, calendar, stop sequence, or current service. Route IDs and shapes may change.
+
+**Decision:** BLOCKED_PENDING_REVIEW. Do not use for current route/service claims. Prefer a rights-cleared current GTFS feed and keep schedule validity separate from geometry validation.
+
+### Trail Features (layer 30) — exclude from trail inventory pending evidence
+
+**Observed metadata:** Point geometry; description states “County and City parks within Volusia County”; fields include LastEdit, EditBy, X_Coord, Y_Coord, REF, Trail_Ref, Trail_Ref2, Trail_Ref3. Copyright is blank.
+
+**Risks:** Name suggests trails, but description and fields suggest park locations/references. Do not call these trailheads or access points based on name alone. Compare with Park Locations before considering use.
+
+**Decision:** BLOCKED_PENDING_REVIEW. Exclude from trail inventory pending semantic and rights evidence.
 
 ## Rights and authority review
 
