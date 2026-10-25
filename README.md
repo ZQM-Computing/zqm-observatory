@@ -29,9 +29,7 @@ The Observatory is focused on:
    authorized targets only.
 3. **Verify before claim.** Source, retrieval date, and method on every product.
 4. **No purchases, ever.** The entire stack is free and open-source.
-5. **No flood or resilience modeling products.** The Observatory observes and
-   analyzes; it does not ship flood or resilience models.
-6. **Aggregates, never individuals.** Games telemetry feeds place intelligence
+5. **Aggregates, never individuals.** Games telemetry feeds place intelligence
    only as anonymized, aggregated exports — no individual tracks, no personal
    data, no children's identifiable data, ever.
 
