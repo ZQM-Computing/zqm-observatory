@@ -12,6 +12,7 @@ From the repository root:
 ```sh
 python -m unittest discover -s tests -v
 python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
+python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product
 python scripts/validate_source_rights.py
 python scripts/validate_products.py
 ```
