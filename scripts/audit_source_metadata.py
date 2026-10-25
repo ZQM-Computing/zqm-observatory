@@ -39,15 +39,15 @@ def layer_metadata_url(value: Any) -> tuple[str | None, str | None]:
         port = parsed.port
     except ValueError:
         return None, "malformed URL or port"
+    expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+    if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
+        return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         return None, "host or scheme is outside the metadata preflight allowlist"
     if parsed.username is not None or parsed.password is not None or port not in (None, 443):
         return None, "credentials or non-standard port are not allowed"
     if parsed.query or parsed.fragment:
         return None, "query strings and fragments are not allowed in registered service URLs"
-    expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
-    if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
-        return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", urlencode({"f": "pjson"}), "")), None
 
 
