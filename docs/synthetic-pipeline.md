@@ -134,7 +134,6 @@ python scripts/compare_product_runs.py --before build/run-a/normalized.geojson -
 
 With `--registry`, comparisons require both run IDs to exist and both file hashes to match. Missing IDs, unknown versions, malformed registries, or content drift fail closed. This does not prove source authority or who approved a run; those remain separate controls.
 
-
 ## Deterministic release-evidence manifest
 
 The release-evidence tool ties the exact candidate artifacts, baseline/candidate run identities, change report, release-gate decision, and human review record into one deterministic manifest. It verifies dataset hashes against both the change report and content-addressed baseline registry before producing evidence.
