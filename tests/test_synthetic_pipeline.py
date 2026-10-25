@@ -215,5 +215,46 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertTrue(any("after: cannot read valid UTF-8 JSON" in error for error in errors), errors)
 
 
+    def test_change_report_classifies_coordinate_movement_with_configurable_threshold(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            before = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            after = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            after["features"][0]["geometry"]["coordinates"] = [
+                before["features"][0]["geometry"]["coordinates"][0] + 0.0013,
+                before["features"][0]["geometry"]["coordinates"][1],
+            ]
+            before_path, after_path = root / "before.geojson", root / "after.geojson"
+            before_path.write_text(json.dumps(before), encoding="utf-8")
+            after_path.write_text(json.dumps(after), encoding="utf-8")
+            report, errors = compare(before_path, after_path, movement_threshold_m=200)
+            self.assertEqual(errors, [])
+            assert report is not None
+            changed = report["changed_features"][0]
+            self.assertTrue(changed["geometry_changed"])
+            self.assertGreater(changed["movement_meters"], 100)
+            self.assertLess(changed["movement_meters"], 150)
+            self.assertFalse(changed["movement_exceeds_threshold"])
+            self.assertEqual(changed["change_class"], "geometry_moved_at_or_below_threshold")
+            report, errors = compare(before_path, after_path, movement_threshold_m=50)
+            self.assertEqual(errors, [])
+            assert report is not None
+            self.assertTrue(report["changed_features"][0]["movement_exceeds_threshold"])
+            self.assertEqual(report["summary"]["geometry_movement_over_threshold_count"], 1)
+
+    def test_change_report_distance_handles_antimeridian_and_rejects_bad_threshold(self) -> None:
+        from scripts.compare_product_runs import distance_meters
+        distance = distance_meters([179.999, 0], [-179.999, 0])
+        self.assertGreater(distance, 200)
+        self.assertLess(distance, 230)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "input.geojson"
+            source.write_bytes(FIXTURE.read_bytes())
+            report, errors = compare(source, source, movement_threshold_m=float("nan"))
+            self.assertIsNone(report)
+            self.assertTrue(any("finite non-negative" in error for error in errors))
+
+
 if __name__ == "__main__":
     unittest.main()

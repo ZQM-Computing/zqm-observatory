@@ -79,6 +79,17 @@ def load_features(path: Path) -> tuple[dict[str, dict[str, Any]], list[str], str
     return indexed, errors, None
 
 
+def distance_meters(left: list[float], right: list[float]) -> float:
+    """Great-circle distance between WGS84 lon/lat points (antimeridian-safe)."""
+    radius_m = 6_371_008.8
+    lon1, lat1 = map(math.radians, left)
+    lon2, lat2 = map(math.radians, right)
+    delta_lon = lon2 - lon1
+    delta_lat = lat2 - lat1
+    a = math.sin(delta_lat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(delta_lon / 2) ** 2
+    return 2 * radius_m * math.asin(math.sqrt(min(1.0, max(0.0, a))))
+
+
 def extent(features: dict[str, dict[str, Any]]) -> list[float] | None:
     if not features:
         return None
@@ -88,7 +99,9 @@ def extent(features: dict[str, dict[str, Any]]) -> list[float] | None:
     return [min(longitudes), min(latitudes), max(longitudes), max(latitudes)]
 
 
-def compare(before_path: Path, after_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
+def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0) -> tuple[dict[str, Any] | None, list[str]]:
+    if not math.isfinite(movement_threshold_m) or movement_threshold_m < 0:
+        return None, ["movement threshold must be a finite non-negative number"]
     before, before_errors, before_load_error = load_features(before_path)
     after, after_errors, after_load_error = load_features(after_path)
     errors: list[str] = []
@@ -108,6 +121,7 @@ def compare(before_path: Path, after_path: Path) -> tuple[dict[str, Any] | None,
     for feature_id in sorted(before_ids & after_ids):
         old, new = before[feature_id], after[feature_id]
         geometry_changed = old["geometry"] != new["geometry"]
+        movement_m = distance_meters(old["geometry"]["coordinates"], new["geometry"]["coordinates"]) if geometry_changed else 0.0
         changed_properties = {
             key: {"before": old["properties"].get(key), "after": new["properties"].get(key)}
             for key in sorted(set(old["properties"]) | set(new["properties"]))
@@ -117,6 +131,10 @@ def compare(before_path: Path, after_path: Path) -> tuple[dict[str, Any] | None,
             changed.append({
                 "id": feature_id,
                 "geometry_changed": geometry_changed,
+                "movement_meters": round(movement_m, 3) if geometry_changed else None,
+                "movement_threshold_meters": movement_threshold_m if geometry_changed else None,
+                "movement_exceeds_threshold": movement_m > movement_threshold_m if geometry_changed else False,
+                "change_class": ("geometry_moved_above_threshold" if movement_m > movement_threshold_m else "geometry_moved_at_or_below_threshold") if geometry_changed else "attributes_changed",
                 "changed_properties": changed_properties,
             })
 
@@ -136,6 +154,8 @@ def compare(before_path: Path, after_path: Path) -> tuple[dict[str, Any] | None,
             "changed_count": len(changed),
             "unchanged_count": len(before_ids & after_ids) - len(changed),
             "extent_changed": before_extent != after_extent,
+            "geometry_movement_over_threshold_count": sum(1 for item in changed if item["geometry_changed"] and item["movement_exceeds_threshold"]),
+            "movement_threshold_meters": movement_threshold_m,
         },
         "extent": {"before": before_extent, "after": after_extent},
         "added_ids": added_ids,
@@ -143,6 +163,7 @@ def compare(before_path: Path, after_path: Path) -> tuple[dict[str, Any] | None,
         "changed_features": changed,
         "limitations": [
             "Comparison is feature-ID based and supports the pipeline's Point GeoJSON contract only.",
+            "Movement thresholds are configurable review heuristics, not evidence of real-world significance or positional accuracy.",
             "A change report describes data differences; it does not establish real-world significance, source authority, licensing, privacy approval, or publication permission.",
             "Hashes provide integrity/change-detection signals, not a digital signature."
         ],
@@ -155,8 +176,9 @@ def main() -> int:
     parser.add_argument("--before", required=True, type=Path, help="earlier normalized GeoJSON")
     parser.add_argument("--after", required=True, type=Path, help="later normalized GeoJSON")
     parser.add_argument("--output", required=True, type=Path, help="path for the JSON change report")
+    parser.add_argument("--movement-threshold-meters", type=float, default=0.0, help="heuristic great-circle movement threshold in meters (default: 0; not a significance or accuracy claim)")
     args = parser.parse_args()
-    report, errors = compare(args.before, args.after)
+    report, errors = compare(args.before, args.after, args.movement_threshold_meters)
     if errors or report is None:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
