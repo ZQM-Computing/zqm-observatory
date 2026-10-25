@@ -18,6 +18,7 @@ on:
       - "scripts/build_synthetic_product.py"
       - "scripts/verify_synthetic_provenance.py"
       - "scripts/compare_product_runs.py"
+      - "config/change-review-rules.example.json"
       - "docs/synthetic-pipeline.md"
       - "scripts/validate_source_rights.py"
       - "scripts/audit_source_metadata.py"
