@@ -111,7 +111,6 @@ real datasets. The provenance record explicitly sets `publication_authorized`
 to `false`. Human rights, privacy, factual, and product review gates remain
 mandatory for any future real-source product.
 
-
 ## Baseline identity and release-gate evaluation
 
 Supply explicit immutable/versioned run identifiers when comparing a baseline and candidate. Avoid mutable labels such as “latest”:
