@@ -21,7 +21,7 @@ The Observatory is focused on:
 2. **Passive-only against third parties.** Active tools run on owned or authorized targets only.
 3. **Verify before claim.** Source, retrieval date, and method on every product.
 4. **No purchases, ever.** The entire stack is free and open-source.
-5. **Privacy and product separation.** Report only sourced public-place facts and appropriately aggregated public data. No individual tracks, personal data, or identifiable children's data. ZQM Labs game telemetry is outside Observatory scope and is not ingested, joined, or used as evidence.
+5. **Privacy and product separation.** Place intelligence is built from public data and field verification, reported only as aggregates. No individual tracks, personal data, or identifiable children's data.
 
 ## What it ships
 
