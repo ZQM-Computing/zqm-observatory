@@ -60,6 +60,19 @@ Every question travels the same cycle: Direction → Collection → Processing �
 Analysis → Dissemination → Feedback → Governance. The software exists to serve
 the cycle, not the other way around.
 
+## What lives here
+
+- [Scope](docs/scope.md): what the Observatory covers, and where it starts.
+- [Methods](docs/methods.md): how a product is built and verified.
+- [Data sources](docs/data-sources.md): the public source categories products draw on.
+- [Roadmap](docs/roadmap.md): the stages from here to the first data product.
+- [Contributing](CONTRIBUTING.md): how to propose a data product.
+- [Data](data/README.md): no data products yet, and the license gate for the first one.
+
+## Contact
+
+Questions or corrections: zqmcomputing@gmail.com.
+
 ## License
 
 Code in this repository is licensed under the Apache License 2.0 (see LICENSE). Data products published from the Observatory — datasets, maps, and digests — are licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), with attribution to their stated sources. Upstream source licenses still apply to their own data.
