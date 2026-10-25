@@ -17,6 +17,7 @@ on:
       - "scripts/validate_products.py"
       - "scripts/build_synthetic_product.py"
       - "scripts/verify_synthetic_provenance.py"
+      - "scripts/verify_synthetic_provenance.py"
       - "docs/synthetic-pipeline.md"
       - "scripts/validate_source_rights.py"
       - "scripts/audit_source_metadata.py"
