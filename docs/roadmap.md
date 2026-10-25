@@ -22,6 +22,8 @@ against, and the repository contains no claim it cannot support.
 
 ## Stage 2: first data product
 
+Use the [first-product release gate](first-product-release-gate.md) as the working checklist from question selection through rights review, QA, privacy review, bundle validation, and publication approval.
+
 The first dated, sourced, verified product lands in the data directory.
 The most likely shape is a community brief or a family guide for one
 Volusia County community: aggregated, field-verified where place
