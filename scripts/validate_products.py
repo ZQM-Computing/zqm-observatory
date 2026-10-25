@@ -79,14 +79,14 @@ def validate_product(path: Path) -> list[str]:
             errors.append(f"{path}/product.json: unsafe data_files entry: {item!r}")
             continue
         candidate = path / item
+        if candidate.is_symlink():
+            errors.append(f"{path}/product.json: symlink data files are not allowed: {item}")
+            continue
         try:
             resolved = candidate.resolve(strict=False)
             resolved.relative_to(path.resolve())
         except (OSError, ValueError):
             errors.append(f"{path}/product.json: data file escapes product directory: {item}")
-            continue
-        if candidate.is_symlink():
-            errors.append(f"{path}/product.json: symlink data files are not allowed: {item}")
             continue
         if not candidate.is_file():
             errors.append(f"{path}/product.json: listed data file does not exist: {item}")
