@@ -55,8 +55,10 @@ jobs:
           path: support/duckdb-spatial-cookbook
           persist-credentials: false
       - name: Install pinned Python runtime
+        timeout-minutes: 8
         run: |
-          python -m pip install --disable-pip-version-check             geopandas==1.1.1 pyarrow==21.0.0 duckdb==1.4.1 shapely==2.1.2 pyproj==3.7.2
+          python -m pip install --disable-pip-version-check --only-binary=:all: --retries 2 --timeout 30 \
+            geopandas==1.1.1 pyarrow==21.0.0 duckdb==1.4.1 shapely==2.1.2 pyproj==3.7.2
       - name: Provision DuckDB Spatial extension
         run: |
           python -c "import duckdb; c=duckdb.connect(); c.execute('INSTALL spatial'); c.execute('LOAD spatial'); print('DuckDB Spatial loaded:', duckdb.__version__); c.close()"
