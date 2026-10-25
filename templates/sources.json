@@ -1,0 +1,13 @@
+[
+  {
+    "id": "source-id",
+    "title": "Exact dataset or source title",
+    "publisher": "Publishing agency or organization",
+    "url": "https://example.gov/dataset",
+    "retrieval_date": "YYYY-MM-DD",
+    "license": "Exact license or documented terms",
+    "supports": [
+      "Specific claim or field in the product supported by this source"
+    ]
+  }
+]

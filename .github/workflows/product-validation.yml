@@ -1,0 +1,36 @@
+name: Product validation
+
+on:
+  pull_request:
+    paths:
+      - "data/**"
+      - "docs/product-standard.md"
+      - "templates/**"
+      - "scripts/validate_products.py"
+      - "tests/test_validate_products.py"
+      - ".github/workflows/product-validation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "data/**"
+      - "docs/product-standard.md"
+      - "templates/**"
+      - "scripts/validate_products.py"
+      - "tests/test_validate_products.py"
+      - ".github/workflows/product-validation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  product-structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run validator unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Validate published product bundles
+        run: python scripts/validate_products.py

@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "product_id": "YYYY-MM-DD-lowercase-slug",
+  "title": "Human-readable product title",
+  "publication_date": "YYYY-MM-DD",
+  "geographic_scope": "Named area and administrative geography",
+  "summary": "What this product answers, its intended audience, and its key limitation.",
+  "license": "CC BY 4.0; upstream source terms still apply.",
+  "source_ids": ["source-id"],
+  "data_files": ["product.csv"],
+  "field_verification": {
+    "status": "not_verified",
+    "notes": "State what was checked on the ground or explicitly state that it was not checked."
+  },
+  "privacy_review": {
+    "reviewed": false,
+    "reviewed_by": "",
+    "review_date": "YYYY-MM-DD",
+    "individual_level_data": false,
+    "personal_data": false,
+    "children_identifiable_data": false
+  }
+}

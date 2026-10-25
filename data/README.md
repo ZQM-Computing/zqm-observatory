@@ -6,6 +6,10 @@ This directory holds Observatory data products. It is intentionally empty
 today. No dataset, map, or digest has been verified and published, and
 nothing here claims otherwise.
 
+## Product bundle standard
+
+Each dated product must follow the [machine-checkable product standard](../docs/product-standard.md). Reusable metadata, source-list, and method templates are in [templates/](../templates/). CI validates bundle structure and declared privacy fields; human review remains responsible for factual accuracy, licensing, substantive privacy, and field verification.
+
 ## What belongs here
 
 A product lands here only when it passes the verification standard in
