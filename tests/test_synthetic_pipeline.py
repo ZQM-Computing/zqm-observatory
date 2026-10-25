@@ -334,5 +334,74 @@ class SyntheticPipelineTests(unittest.TestCase):
             report, errors = compare(before, after, before_id="baseline-v1", after_id="candidate-v1", registry_path=registry)
             self.assertIsNone(report); self.assertTrue(any("not registered" in e for e in errors))
 
+    def test_release_evidence_manifest_is_deterministic_and_fails_closed_without_approval(self) -> None:
+        from scripts.build_release_evidence import build_manifest
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            product = root / "product"
+            self.assertEqual(build(FIXTURE, product), 0)
+            dataset = product / "normalized.geojson"
+            registry = root / "registry.json"
+            from scripts.baseline_registry import main as registry_main
+            from unittest.mock import patch
+            import contextlib, io
+            for run_id in ("baseline-v1", "candidate-v1"):
+                argv = ["baseline_registry.py", "register", "--registry", str(registry), "--run-id", run_id, "--dataset", str(dataset), "--pipeline-version", "0.1.0", "--description", "synthetic test run"]
+                with patch("sys.argv", argv), contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(registry_main(), 0)
+            change, errors = compare(dataset, dataset, before_id="baseline-v1", after_id="candidate-v1", registry_path=registry)
+            self.assertEqual(errors, [])
+            change_path = root / "change.json"
+            change_path.write_text(json.dumps(change), encoding="utf-8")
+            gate, errors = evaluate(change, {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True})
+            self.assertEqual(errors, [])
+            gate_path = root / "gate.json"
+            gate_path.write_text(json.dumps(gate), encoding="utf-8")
+            reviews = {"schema_version": 1, "review_type": "zqm_observatory_release_reviews", "gates": {}}
+            for name in ("source_rights", "privacy", "factual_quality", "product_owner"):
+                reviews["gates"][name] = {"decision": "approved", "reviewer": "reviewer-example", "reviewed_on": "2026-10-25", "evidence": "test-only evidence"}
+            reviews_path = root / "reviews.json"
+            reviews_path.write_text(json.dumps(reviews), encoding="utf-8")
+            args = (product, dataset, dataset, registry, change_path, gate_path, reviews_path)
+            manifest_a, errors = build_manifest(*args)
+            self.assertEqual(errors, [])
+            manifest_b, errors = build_manifest(*args)
+            self.assertEqual(errors, [])
+            self.assertEqual(manifest_a, manifest_b)
+            self.assertEqual(manifest_a["decision"], "blocked")
+            self.assertFalse(manifest_a["publication_authorized_by_manifest"])
+            reviews["gates"]["privacy"]["decision"] = "pending"
+            reviews_path.write_text(json.dumps(reviews), encoding="utf-8")
+            manifest, errors = build_manifest(*args)
+            self.assertIsNone(manifest)
+            self.assertTrue(any("privacy is not approved" in error for error in errors), errors)
+
+    def test_release_evidence_detects_change_report_hash_drift(self) -> None:
+        from scripts.build_release_evidence import build_manifest
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            product = root / "product"
+            self.assertEqual(build(FIXTURE, product), 0)
+            dataset = product / "normalized.geojson"
+            registry = root / "registry.json"
+            registry.write_text(json.dumps({"schema_version": 1, "registry_type": "zqm_observatory_baseline_registry", "runs": [
+                {"run_id": "base-v1", "dataset_sha256": __import__("hashlib").sha256(dataset.read_bytes()).hexdigest(), "pipeline_version": "0.1.0", "description": "baseline"},
+                {"run_id": "candidate-v1", "dataset_sha256": __import__("hashlib").sha256(dataset.read_bytes()).hexdigest(), "pipeline_version": "0.1.0", "description": "candidate"}
+            ]}), encoding="utf-8")
+            change, _ = compare(dataset, dataset, before_id="base-v1", after_id="candidate-v1")
+            change["inputs"]["after"]["sha256"] = "0" * 64
+            change_path = root / "change.json"
+            change_path.write_text(json.dumps(change), encoding="utf-8")
+            gate_path = root / "gate.json"
+            gate_path.write_text(json.dumps({"decision": "eligible_for_human_release_review", "violations": []}), encoding="utf-8")
+            reviews_path = root / "reviews.json"
+            reviews_path.write_text(json.dumps({"schema_version": 1, "review_type": "zqm_observatory_release_reviews", "gates": {
+                name: {"decision": "approved", "reviewer": "reviewer", "reviewed_on": "2026-10-25", "evidence": "record"}
+                for name in ("source_rights", "privacy", "factual_quality", "product_owner")
+            }}), encoding="utf-8")
+            manifest, errors = build_manifest(product, dataset, dataset, registry, change_path, gate_path, reviews_path)
+            self.assertIsNone(manifest)
+            self.assertTrue(any("hash does not match supplied file" in error for error in errors), errors)
+
 if __name__ == "__main__":
     unittest.main()
