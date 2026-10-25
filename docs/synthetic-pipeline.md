@@ -163,3 +163,63 @@ python scripts/verify_release_evidence.py --manifest build/release-evidence/mani
 ```
 
 The verifier checks every bundled artifact hash, confirms the change report's before/after hashes match the bundled datasets, and recomputes the release-gate decision from the bundled policy. It rejects policy/report drift and does not accept a manifest as publication authorization. Hashes detect accidental or uncoordinated changes; an attacker able to replace both manifest and artifacts can recompute them, so use signed attestations or access-controlled immutable storage when adversarial tamper resistance is required.
+
+## Signed release attestations and release history
+
+The optional attestation layer signs the exact, independently verified manifest with
+Ed25519. Install the optional dependency in `requirements-security.txt`; keep the
+private key outside the repository and provide it only through a controlled signing
+environment. The private key must be an unencrypted PEM Ed25519 key for this CLI;
+do not place it in CI logs, artifacts, source control, or this repository's secrets
+unless a separately reviewed signing workflow explicitly requires that design.
+
+Generate a key pair using a trusted local security tool or key-management service.
+For a local test key only, OpenSSL can generate PEM Ed25519 keys:
+
+```sh
+openssl genpkey -algorithm Ed25519 -out release-signing-private.pem
+openssl pkey -in release-signing-private.pem -pubout -out release-signing-public.pem
+```
+
+Sign only after building and independently verifying the bundle:
+
+```sh
+python scripts/verify_release_evidence.py --manifest build/release-evidence/manifest.json
+python scripts/sign_release_attestation.py sign \
+  --manifest build/release-evidence/manifest.json \
+  --private-key /secure/path/release-signing-private.pem \
+  --issuer "release-review-system" \
+  --output build/release-evidence/attestation.json
+python scripts/sign_release_attestation.py verify \
+  --attestation build/release-evidence/attestation.json \
+  --public-key /trusted/path/release-signing-public.pem \
+  --manifest build/release-evidence/manifest.json
+```
+
+The signed payload binds the manifest SHA-256, all artifact hashes, policy hash,
+human-review-record hash, decision, issuer, key fingerprint, and issuance time.
+Verification requires an explicitly supplied trusted public key and also reruns
+the existing bundle verifier. A signature proves integrity and possession of the
+corresponding private key; it does not establish that the issuer was entitled to
+approve a release, that review evidence is true, that data is licensed, or that
+publication is authorized. The current verifier deliberately accepts only the
+blocked, non-authorizing synthetic evidence bundle.
+
+A local hash-linked history can record signed-attestation files:
+
+```sh
+python scripts/release_history.py append \
+  --history build/release-history.jsonl \
+  --attestation build/release-evidence/attestation.json
+python scripts/release_history.py verify \
+  --history build/release-history.jsonl \
+  --attestation-dir build/release-evidence
+```
+
+The JSONL chain detects accidental edits, reordering, and missing/replaced
+attestation files relative to its stored hashes. It is not append-only against an
+administrator who can rewrite the whole file, and it does not itself verify
+signatures. Preserve the ledger, attestations, and trusted public-key records in
+access-controlled or immutable storage, with an external checkpoint/anchor, for
+stronger audit guarantees. CI tests use ephemeral keys and synthetic blocked
+evidence only; CI does not sign production releases or append a release ledger.

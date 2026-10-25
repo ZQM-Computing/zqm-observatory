@@ -1,0 +1,2 @@
+# Optional release-attestation cryptography dependency. Install only when signing/verifying attestations.
+cryptography>=44.0.0,<47.0.0

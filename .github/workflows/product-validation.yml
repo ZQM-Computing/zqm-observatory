@@ -22,6 +22,9 @@ on:
       - "scripts/evaluate_change_release.py"
       - "scripts/build_release_evidence.py"
       - "scripts/verify_release_evidence.py"
+      - "scripts/sign_release_attestation.py"
+      - "scripts/release_history.py"
+      - "requirements-security.txt"
       - "config/release-reviews.example.json"
       - "config/release-gate-rules.example.json"
       - "config/change-review-rules.example.json"
@@ -48,6 +51,9 @@ on:
       - "scripts/build_synthetic_product.py"
       - "scripts/verify_synthetic_provenance.py"
       - "scripts/compare_product_runs.py"
+      - "scripts/sign_release_attestation.py"
+      - "scripts/release_history.py"
+      - "requirements-security.txt"
       - "docs/synthetic-pipeline.md"
       - "scripts/validate_source_rights.py"
       - "scripts/audit_source_metadata.py"
@@ -65,6 +71,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Install optional attestation test dependency
+        run: python -m pip install -r requirements-security.txt
       - name: Run validator unit tests
         run: python -m unittest discover -s tests -v
       - name: Validate source rights register
