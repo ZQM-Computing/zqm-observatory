@@ -66,6 +66,31 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertFalse((output / "normalized.geojson").exists())
             self.assertFalse((output / "provenance.json").exists())
 
+    def test_failed_rerun_removes_stale_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            broken = root / "broken.geojson"
+            broken.write_text("{not json", encoding="utf-8")
+            self.assertEqual(build(broken, output), 1)
+            self.assertTrue((output / "qa-report.json").exists())
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
+    def test_non_string_required_property_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            raw["features"][0]["properties"]["name"] = 17
+            source = root / "bad-property.geojson"
+            source.write_text(json.dumps(raw), encoding="utf-8")
+            output = root / "out"
+            self.assertEqual(build(source, output), 1)
+            qa = json.loads((output / "qa-report.json").read_text(encoding="utf-8"))
+            self.assertTrue(any("properties.name must be a non-empty string" in e for e in qa["errors"]))
+            self.assertFalse((output / "normalized.geojson").exists())
+
 
 if __name__ == "__main__":
     unittest.main()
