@@ -86,6 +86,7 @@ The initial product should remain an inventory of sourced places and mapped feat
 - **GTFS QA:** validate ZIP integrity and required files; parse every table; test primary-key uniqueness and foreign-key references; validate date ranges and calendar exceptions; confirm times beyond 24:00 are handled correctly; check stop coordinates and shape sequence/continuity; reconcile route/trip/stop counts; and record all warnings. Evaluate the feed for a named service date, not simply today's date or the overall feed range.
 - **Accessibility limit:** a stop's wheelchair_boarding or a trip's accessibility field is a feed assertion, not a field audit of sidewalk, curb, shelter, boarding pad, path continuity, or physical accessibility.
 - **Rights:** do not assume a downloadable GTFS feed is unrestricted. Check the agency's terms and any feed license; retain evidence of the applicable terms with the collection record. If terms are unclear, use the feed for internal evaluation only until clarified and do not republish source files or derivatives.
+
 ### B2. VOTRAN Transit Development Plan and Transportation Disadvantaged Service Plan
 
 - **Official planning page:** [TDP / TDSP](https://www.votran.org/documents-data/development-plan.stml)
