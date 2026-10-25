@@ -66,7 +66,17 @@ python scripts/audit_source_metadata.py --output build/source-metadata-preflight
 
 This preflight is deliberately bounded to eligible layer metadata. It does not request feature records, authorize collection, establish a license, or approve publication. Review its output before committing a report; the exact network boundaries are documented in [metadata-only source preflight](docs/metadata-only-source-preflight.md).
 
-## Reproducible synthetic pipeline\n\nA first offline end-to-end pipeline is available for engineering and CI validation. It uses an invented GeoJSON fixture only; it does not fetch real sources or authorize publication. Run it with:\n\n```sh\npython scripts/build_synthetic_product.py\n```\n\nIt produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.\n\n## First-product release workflow
+## Reproducible synthetic pipeline
+
+A first offline end-to-end pipeline is available for engineering and CI validation. It uses an invented GeoJSON fixture only; it does not fetch real sources or authorize publication. Run it with:
+
+```sh
+python scripts/build_synthetic_product.py
+```
+
+It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
+
+## First-product release workflow
 
 Start with a decision-relevant question and the smallest suitable product—not bulk collection.
 
