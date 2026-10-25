@@ -86,6 +86,12 @@ def validate_report(report: Any, expected_feature_count: int) -> list[str]:
     return errors
 
 
+def gdal_version() -> str:
+    """Read the runtime GDAL version from the same Python environment as the CLI."""
+    from osgeo import gdal
+    return str(gdal.VersionInfo("--version"))
+
+
 def load_feature_count(fixture: Path) -> int:
     value = json.loads(fixture.read_text(encoding="utf-8"))
     if not isinstance(value, dict) or value.get("type") != "FeatureCollection":
@@ -192,9 +198,7 @@ def main(argv: list[str] | None = None) -> int:
                     "commit": args.producer_commit.lower(),
                     "script": "scripts/dataset_qa.py",
                     "python": sys.version.split()[0],
-                    "gdal": subprocess.run(
-                        ["gdal-config", "--version"], capture_output=True, text=True, check=True
-                    ).stdout.strip(),
+                    "gdal": gdal_version(),
                 },
                 "invocation": {
                     "required_fields": ["id", "name"],
