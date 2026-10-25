@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+from urllib.parse import urlencode, urlparse, urlunparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 DEFAULT_REGISTER = Path("config/source-rights.json")
@@ -34,16 +34,20 @@ def layer_metadata_url(value: Any) -> tuple[str | None, str | None]:
     """Return a normalized metadata-only URL, or a reason to skip/refuse it."""
     if not isinstance(value, str):
         return None, "service_url is not a string"
-    parsed = urlparse(value)
+    try:
+        parsed = urlparse(value)
+        port = parsed.port
+    except ValueError:
+        return None, "malformed URL or port"
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         return None, "host or scheme is outside the metadata preflight allowlist"
-    if parsed.username is not None or parsed.password is not None or parsed.port not in (None, 443):
+    if parsed.username is not None or parsed.password is not None or port not in (None, 443):
         return None, "credentials or non-standard port are not allowed"
     if parsed.query or parsed.fragment:
         return None, "query strings and fragments are not allowed in registered service URLs"
-    parts = parsed.path.rstrip("/").split("/")
-    if len(parts) < 2 or parts[-2] != "FeatureServer" or not parts[-1].isdigit():
-        return None, "not an ArcGIS FeatureServer layer URL; skipped without network request"
+    expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+    if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
+        return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
     return urlunparse((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", urlencode({"f": "pjson"}), "")), None
 
 
