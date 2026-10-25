@@ -2,7 +2,7 @@
 
 **Purpose:** record whether a specific upstream dataset may be collected, transformed, combined, and republished for a defined Observatory product. This is an evidence log and decision aid, not legal advice.
 
-**Default state:** \`BLOCKED_PENDING_REVIEW\`. A public URL, downloadable file, blank copyright field, “open data” label, or warranty disclaimer does not by itself establish permission to redistribute the source or publish derivatives.
+**Default state:** `BLOCKED_PENDING_REVIEW`. A public URL, downloadable file, blank copyright field, “open data” label, or warranty disclaimer does not by itself establish permission to redistribute the source or publish derivatives.
 
 ## 1. Review one item at a time
 
@@ -14,7 +14,7 @@ Do not approve an entire portal or service based on one landing-page statement. 
 | Evidence of terms | Exact terms/license URL, captured text or archived evidence, retrieval timestamp (UTC), displayed version/date |
 | Intended use | Internal inspection, transformation, spatial join, public map, redistribution of raw data, redistribution of derived data |
 | Obligations | Required attribution, notices, share-alike, access restrictions, privacy/security limits, fees, expiration or update conditions |
-| Decision | \`APPROVED\`, \`APPROVED_WITH_CONDITIONS\`, \`INTERNAL_ONLY\`, \`BLOCKED_PENDING_REVIEW\`, or \`REJECTED\` |
+| Decision | `APPROVED`, `APPROVED_WITH_CONDITIONS`, `INTERNAL_ONLY`, `BLOCKED_PENDING_REVIEW`, or `REJECTED` |
 | Rationale | Exact clause supporting the decision, scope of permission, unresolved ambiguity, reviewer and review date |
 | Recheck trigger | Terms change, new item/version, new intended use, new joining source, or material change in output |
 
@@ -42,7 +42,7 @@ Adapt this message to the exact dataset; do not send it automatically.
 
 Copy this block into the relevant source register or a restricted review log. Do not commit private correspondence or personal contact details unless publication is appropriate.
 
-\`\`\`yaml
+```yaml
 source_title: ""
 publisher: ""
 steward_role_or_office: ""
@@ -72,9 +72,9 @@ recheck_triggers:
   - source terms change
   - source version changes
   - intended use or output license changes
-\`\`\`
+```
 
-The booleans above are fields to be filled from evidence, not assumptions. A value of \`false\` means “not approved for this use,” not necessarily “the publisher prohibits it.”
+The booleans above are fields to be filled from evidence, not assumptions. A value of `false` means “not approved for this use,” not necessarily “the publisher prohibits it.”
 
 ## 5. Publication gate
 
@@ -86,7 +86,7 @@ A source may be included in a public product only when all applicable checks pas
 - [ ] Attribution and other obligations are recorded and implemented.
 - [ ] Ambiguity is resolved by authoritative written clarification, where needed.
 - [ ] The proposed output license is compatible with the source terms.
-- [ ] The review is linked from the product's \`sources.json\` or source register.
+- [ ] The review is linked from the product's `sources.json` or source register.
 - [ ] The review will be repeated if the source version, terms, or use changes.
 
 A completed checklist is an auditable review, not a guarantee of legal sufficiency. Escalate material ambiguity to qualified counsel or the rights holder rather than guessing.
