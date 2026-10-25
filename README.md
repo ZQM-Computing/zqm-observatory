@@ -65,6 +65,8 @@ the cycle, not the other way around.
 
 - [Scope](docs/scope.md): what the Observatory covers, and where it starts.
 - [Methods](docs/methods.md): how a product is built and verified.
+- [Geospatial repository integration map](docs/geospatial-repository-integration.md): recommended handoffs across ZQM Computing's geospatial tools, with implementation status stated explicitly.
+- [Geospatial Cookbooks index](https://github.com/ZQM-Computing/geospatial-cookbooks): the independent cookbook and reference-repository catalog.
 - [Data sources](docs/data-sources.md): the public source categories products draw on.
 - [Source rights review](docs/source-rights-review.md): the item-level permission and publication gate.
 - [Machine-readable source rights register](docs/source-rights-register.md): source-by-source decisions and the fail-closed validator.
