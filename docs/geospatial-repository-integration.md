@@ -2,6 +2,8 @@
 
 This document identifies useful handoffs between Observatory and the ZQM Computing geospatial repositories. It is an integration plan, **not evidence that these repositories currently call one another or that an end-to-end pipeline has passed**. The Observatory remains Stage 0; no live product or production service is implied.
 
+The latest repository-level evidence crawl, including inspected commit snapshots, confirmed interfaces, status discrepancies, and the proposed order of integration, is recorded in [supporting-repository-crawl.md](supporting-repository-crawl.md). That crawl is a desk review; it does not claim cross-repository runtime compatibility.
+
 ## Guardrails before any handoff
 
 1. Resolve source-specific rights before collecting or redistributing records. A repository's ability to read a format does not grant permission to use the data.
