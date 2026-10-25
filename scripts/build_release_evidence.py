@@ -125,6 +125,22 @@ def build_manifest(
     input_record = provenance.get("input")
     if not isinstance(input_record, dict) or not isinstance(input_record.get("sha256"), str) or not SHA256.fullmatch(input_record["sha256"]):
         errors.append("provenance input hash is missing or malformed")
+    output_record = provenance.get("output")
+    if isinstance(output_record, dict) and isinstance(output_record.get("sha256"), str):
+        try:
+            candidate_hash = sha256_file(after_path)
+        except OSError as exc:
+            errors.append(f"candidate dataset cannot be read: {exc}")
+        else:
+            if candidate_hash != output_record["sha256"]:
+                errors.append("candidate dataset does not match the product provenance output hash")
+            try:
+                product_hash = sha256_file(product_dir / "normalized.geojson")
+            except OSError as exc:
+                errors.append(f"normalized product cannot be read: {exc}")
+            else:
+                if product_hash != candidate_hash:
+                    errors.append("candidate dataset does not match product-dir normalized.geojson")
 
     input_map = (("before", before_path), ("after", after_path))
     for side, path in input_map:
