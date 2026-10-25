@@ -114,12 +114,12 @@ def load_review_rules(path: Path | None) -> tuple[dict[str, Any] | None, str | N
     if not isinstance(rules, dict) or set(rules) - {"default", "geometry", "properties"}:
         return None, None, "review rules must be an object with only default, geometry, and properties keys"
     rules = {"default": rules.get("default", "low"), "geometry": rules.get("geometry", "medium"), "properties": rules.get("properties", {})}
-    if rules["default"] not in SEVERITY_RANK or rules["geometry"] not in SEVERITY_RANK:
+    if not isinstance(rules["default"], str) or rules["default"] not in SEVERITY_RANK or not isinstance(rules["geometry"], str) or rules["geometry"] not in SEVERITY_RANK:
         return None, None, "default and geometry severities must be info, low, medium, high, or critical"
     if not isinstance(rules["properties"], dict):
         return None, None, "properties rules must be an object mapping property names to severities"
     for key, severity in rules["properties"].items():
-        if not isinstance(key, str) or severity not in SEVERITY_RANK:
+        if not isinstance(key, str) or not isinstance(severity, str) or severity not in SEVERITY_RANK:
             return None, None, "each property rule must map a string property name to info, low, medium, high, or critical"
     return rules, hashlib.sha256(raw).hexdigest(), None
 
