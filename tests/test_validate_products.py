@@ -119,6 +119,46 @@ class ProductValidationTests(unittest.TestCase):
         errors = validate_product(product_dir)
         self.assertTrue(any("symlink data files are not allowed" in error for error in errors))
 
+    def test_malformed_url_port_fails(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        sources[0]["url"] = "https://example.gov:bad/dataset"
+        path.write_text(json.dumps(sources), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("valid port" in error for error in errors))
+
+    def test_undeclared_sidecar_file_fails(self) -> None:
+        product_dir = self.make_product()
+        (product_dir / "private-notes.txt").write_text("unreviewed sidecar", encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("undeclared file" in error and "private-notes.txt" in error for error in errors))
+
+    def test_nested_undeclared_file_fails(self) -> None:
+        product_dir = self.make_product()
+        nested = product_dir / "supporting"
+        nested.mkdir()
+        (nested / "extra.csv").write_text("id,value\\n1,unreviewed\\n", encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("undeclared file" in error and "supporting/extra.csv" in error for error in errors))
+
+    def test_symlinked_method_file_is_rejected_before_reading(self) -> None:
+        product_dir = self.make_product()
+        method = product_dir / "method.md"
+        method.unlink()
+        outside = self.root / "outside-method.md"
+        outside.write_text("# Method\\n" + "external content " * 10, encoding="utf-8")
+        method.symlink_to(outside)
+        errors = validate_product(product_dir)
+        self.assertTrue(any("symlinks are not allowed" in error for error in errors))
+
+    def test_symlinked_product_directory_is_rejected(self) -> None:
+        real_product = self.make_product()
+        linked_product = self.data / "2026-10-25-linked-product"
+        linked_product.symlink_to(real_product, target_is_directory=True)
+        errors = validate_product(linked_product)
+        self.assertTrue(any("product directory must not be a symlink" in error for error in errors))
+
     def test_directory_and_publication_dates_must_match(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"
