@@ -46,7 +46,7 @@ def read_json(path: Path, errors: list[str]) -> Any:
 
 
 def safe_relative_file(value: Any) -> bool:
-    if not isinstance(value, str) or not value or "\\\\" in value:
+    if not isinstance(value, str) or not value or "\\" in value:
         return False
     candidate = Path(value)
     # Require portable, canonical relative paths; reject empty/dot segments,
