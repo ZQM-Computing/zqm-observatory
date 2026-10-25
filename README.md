@@ -29,9 +29,9 @@ The Observatory is focused on:
    authorized targets only.
 3. **Verify before claim.** Source, retrieval date, and method on every product.
 4. **No purchases, ever.** The entire stack is free and open-source.
-5. **Aggregates, never individuals.** Games telemetry feeds place intelligence
-   only as anonymized, aggregated exports — no individual tracks, no personal
-   data, no children's identifiable data, ever.
+5. **Aggregates, never individuals.** Place intelligence is built from public
+   data and field verification, reported only as aggregates — no individual
+   tracks, no personal data, no children's identifiable data, ever.
 
 ## What it ships
 
@@ -40,10 +40,9 @@ The Observatory is focused on:
 - Community briefs — safety, situational, operational, and family-life
   intelligence for communities.
 - Family guides — safe, family-friendly places and activities, built from place
-  intelligence and games telemetry.
-- Telemetry-enhanced place intelligence (aggregated, anonymized only): which
-  places people actually use and enjoy, and field-verified place conditions
-  from play.
+  intelligence and field verification.
+- Place intelligence (aggregated only): public-use patterns for places people
+  use and enjoy, and field-verified place conditions.
 - Demos, dashboards, and public methods — code, pipelines, and documentation
   other practitioners can reuse.
 
