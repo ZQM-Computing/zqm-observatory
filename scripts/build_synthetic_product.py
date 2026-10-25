@@ -66,9 +66,13 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
         if missing:
             errors.append(f"{label}: missing required properties: {', '.join(missing)}")
             continue
+        invalid_property = False
         for key in ("id", "name", "category"):
             if not isinstance(properties.get(key), str) or not properties[key].strip():
                 errors.append(f"{label}: properties.{key} must be a non-empty string")
+                invalid_property = True
+        if invalid_property:
+            continue
         feature_id = properties.get("id")
         if isinstance(feature_id, str) and feature_id:
             if feature_id in seen_ids:
