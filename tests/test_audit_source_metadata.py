@@ -50,6 +50,9 @@ class MetadataPreflightTests(unittest.TestCase):
         )
         self.assertIsNone(reason)
         self.assertIn("/FeatureServer/32?f=pjson", url)
+        self.assertIsNone(layer_metadata_url(
+            "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32", 31
+        )[0])
         for invalid in (
             "https://www.votran.org/documents-data/",
             "https://example.com/FeatureServer/32",
@@ -87,6 +90,14 @@ class MetadataPreflightTests(unittest.TestCase):
         self.assertEqual(opener.timeout, 15)
         self.assertNotIn("where=", opener.request.full_url)
         self.assertNotIn("outFields=", opener.request.full_url)
+
+    def test_response_layer_identity_must_match_register(self):
+        raw = json.dumps({"id": 31, "name": "Wrong layer", "fields": []}).encode()
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        result = capture_one(source, opener=FakeOpener(FakeResponse(raw)))
+        self.assertEqual(result["status"], "ERROR")
+        self.assertIn("does not match registered layer id", result["reason"])
+        self.assertNotIn("metadata", result)
 
     def test_oversized_response_fails_closed(self):
         from audit_source_metadata import MAX_RESPONSE_BYTES

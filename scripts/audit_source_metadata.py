@@ -30,7 +30,7 @@ class NoRedirectHandler(HTTPRedirectHandler):
         return None
 
 
-def layer_metadata_url(value: Any) -> tuple[str | None, str | None]:
+def layer_metadata_url(value: Any, expected_layer_id: Any = None) -> tuple[str | None, str | None]:
     """Return a normalized metadata-only URL, or a reason to skip/refuse it."""
     if not isinstance(value, str):
         return None, "service_url is not a string"
@@ -42,6 +42,9 @@ def layer_metadata_url(value: Any) -> tuple[str | None, str | None]:
     expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
     if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
         return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
+    path_layer_id = int(parsed.path[len(expected_prefix):])
+    if expected_layer_id is not None and (not isinstance(expected_layer_id, int) or isinstance(expected_layer_id, bool) or path_layer_id != expected_layer_id):
+        return None, "registered layer_id does not match the layer URL; refusing network request"
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         return None, "host or scheme is outside the metadata preflight allowlist"
     if parsed.username is not None or parsed.password is not None or port not in (None, 443):
@@ -103,7 +106,7 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": "SKIPPED",
     }
-    url, reason = layer_metadata_url(source.get("service_url"))
+    url, reason = layer_metadata_url(source.get("service_url"), source.get("layer_id"))
     if reason:
         result["reason"] = reason
         return result
@@ -130,7 +133,11 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         result["response_sha256"] = hashlib.sha256(raw).hexdigest()
         try:
             payload = json.loads(raw.decode("utf-8"))
-            result["metadata"] = summarize_metadata(payload)
+            metadata = summarize_metadata(payload)
+            expected_layer_id = source.get("layer_id")
+            if expected_layer_id is not None and metadata["layer_id"] != expected_layer_id:
+                raise ValueError("response layer id does not match registered layer id")
+            result["metadata"] = metadata
         except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
             result.update(status="ERROR", reason=f"invalid layer metadata: {exc}")
             return result
