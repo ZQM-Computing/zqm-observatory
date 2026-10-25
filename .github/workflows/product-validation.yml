@@ -20,6 +20,8 @@ on:
       - "scripts/compare_product_runs.py"
       - "scripts/baseline_registry.py"
       - "scripts/evaluate_change_release.py"
+      - "scripts/build_release_evidence.py"
+      - "config/release-reviews.example.json"
       - "config/release-gate-rules.example.json"
       - "config/change-review-rules.example.json"
       - "docs/synthetic-pipeline.md"
