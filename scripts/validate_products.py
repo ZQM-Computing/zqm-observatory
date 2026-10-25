@@ -48,6 +48,10 @@ def read_json(path: Path, errors: list[str]) -> Any:
 def safe_relative_file(value: Any) -> bool:
     if not isinstance(value, str) or not value or "\\" in value:
         return False
+    # A drive-prefixed path is not portable: on POSIX it can look relative,
+    # while Windows interprets it as a drive path (absolute or drive-relative).
+    if re.match(r"^[A-Za-z]:", value):
+        return False
     candidate = Path(value)
     # Require portable, canonical relative paths; reject empty/dot segments,
     # absolute paths, traversal, and control characters.
