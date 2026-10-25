@@ -14,6 +14,7 @@ import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 PRODUCT_DIR = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 PRODUCT_REQUIRED = {
@@ -71,11 +72,22 @@ def validate_product(path: Path) -> list[str]:
     if not isinstance(data_files, list) or not data_files:
         errors.append(f"{path}/product.json: data_files must be a non-empty list")
         data_files = []
+    if all(isinstance(item, str) for item in data_files) and len(data_files) != len(set(data_files)):
+        errors.append(f"{path}/product.json: data_files entries must be unique")
     for item in data_files:
         if not isinstance(item, str) or not item or Path(item).is_absolute() or ".." in Path(item).parts:
             errors.append(f"{path}/product.json: unsafe data_files entry: {item!r}")
             continue
         candidate = path / item
+        if candidate.is_symlink():
+            errors.append(f"{path}/product.json: symlink data files are not allowed: {item}")
+            continue
+        try:
+            resolved = candidate.resolve(strict=False)
+            resolved.relative_to(path.resolve())
+        except (OSError, ValueError):
+            errors.append(f"{path}/product.json: data file escapes product directory: {item}")
+            continue
         if not candidate.is_file():
             errors.append(f"{path}/product.json: listed data file does not exist: {item}")
 
@@ -120,8 +132,16 @@ def validate_product(path: Path) -> list[str]:
             if not isinstance(source.get(key), str) or not source[key].strip():
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
-        if not isinstance(url, str) or not url.startswith("https://") or any(ch.isspace() for ch in url):
-            errors.append(f"{label}: url must be an HTTPS URL")
+        parsed_url = urlparse(url) if isinstance(url, str) else None
+        if (
+            parsed_url is None
+            or parsed_url.scheme != "https"
+            or not parsed_url.hostname
+            or parsed_url.username is not None
+            or parsed_url.password is not None
+            or any(ch.isspace() for ch in url)
+        ):
+            errors.append(f"{label}: url must be a valid HTTPS URL with a hostname and no embedded credentials")
         if not is_iso_date(source.get("retrieval_date")):
             errors.append(f"{label}: retrieval_date must be YYYY-MM-DD")
         if not isinstance(source.get("supports"), list) or not source["supports"] or any(not isinstance(x, str) or not x.strip() for x in source["supports"]):
@@ -130,10 +150,13 @@ def validate_product(path: Path) -> list[str]:
     if len(source_ids) != len(set(source_ids)):
         errors.append(f"{path}/sources.json: source IDs must be unique")
     declared_ids = product.get("source_ids")
-    if not isinstance(declared_ids, list) or not declared_ids or any(not isinstance(x, str) for x in declared_ids):
-        errors.append(f"{path}/product.json: source_ids must be a non-empty list")
-    elif set(declared_ids) != set(source_ids):
-        errors.append(f"{path}: product source_ids must match sources.json IDs")
+    if not isinstance(declared_ids, list) or not declared_ids or any(not isinstance(x, str) or not x.strip() for x in declared_ids):
+        errors.append(f"{path}/product.json: source_ids must be a non-empty list of non-empty strings")
+    else:
+        if len(declared_ids) != len(set(declared_ids)):
+            errors.append(f"{path}/product.json: source_ids must be unique")
+        if set(declared_ids) != set(source_ids):
+            errors.append(f"{path}: product source_ids must match sources.json IDs")
     if not (path / "method.md").is_file():
         errors.append(f"{path}: method.md is required")
     elif len((path / "method.md").read_text(encoding="utf-8").strip()) < 100:
