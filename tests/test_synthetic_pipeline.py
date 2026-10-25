@@ -256,5 +256,33 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertTrue(any("finite non-negative" in error for error in errors))
 
 
+    def test_change_report_applies_attribute_review_rules_and_hashes_configuration(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            before = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            after = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            after["features"][0]["properties"]["category"] = "updated-category"
+            before_path, after_path = root / "before.geojson", root / "after.geojson"
+            rules_path = root / "rules.json"
+            before_path.write_text(json.dumps(before), encoding="utf-8")
+            after_path.write_text(json.dumps(after), encoding="utf-8")
+            rules_path.write_text(json.dumps({"default": "low", "geometry": "medium", "properties": {"category": "critical", "name": "high"}}), encoding="utf-8")
+            report, errors = compare(before_path, after_path, rules_path=rules_path)
+            self.assertEqual(errors, [])
+            assert report is not None
+            self.assertEqual(report["changed_features"][0]["review_severity"], "critical")
+            self.assertEqual(len(report["review_configuration"]["rules_sha256"]), 64)
+
+    def test_change_report_rejects_invalid_review_rules(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source, rules = root / "input.geojson", root / "rules.json"
+            source.write_bytes(FIXTURE.read_bytes())
+            rules.write_text(json.dumps({"default": "urgent"}), encoding="utf-8")
+            report, errors = compare(source, source, rules_path=rules)
+            self.assertIsNone(report)
+            self.assertTrue(any("severities must be" in error for error in errors), errors)
+
+
 if __name__ == "__main__":
     unittest.main()
