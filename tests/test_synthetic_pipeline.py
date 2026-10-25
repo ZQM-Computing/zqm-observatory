@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from scripts.build_synthetic_product import build, write_draft_bundle
+from scripts.verify_synthetic_provenance import verify
 from scripts.validate_products import validate_product
 
 
@@ -111,6 +112,33 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertTrue(any("privacy_review.reviewed must be true" in error for error in errors))
             self.assertTrue(any("privacy_review.reviewed_by must be a non-empty string" in error for error in errors))
             self.assertEqual(len(errors), 2, errors)
+
+
+    def test_provenance_verifier_accepts_unchanged_run_and_detects_output_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            self.assertEqual(verify(FIXTURE, output), [])
+            normalized = output / "normalized.geojson"
+            normalized.write_bytes(normalized.read_bytes() + b" ")
+            errors = verify(FIXTURE, output)
+            self.assertTrue(any("normalized output: SHA-256 mismatch" in error for error in errors), errors)
+
+    def test_provenance_verifier_detects_input_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            changed_input = root / "changed.geojson"
+            changed_input.write_bytes(FIXTURE.read_bytes() + b" ")
+            errors = verify(changed_input, output)
+            self.assertTrue(any("input: SHA-256 mismatch" in error for error in errors), errors)
+
+    def test_provenance_verifier_rejects_missing_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            errors = verify(FIXTURE, Path(tmp))
+            self.assertTrue(any("provenance.json cannot be read" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
