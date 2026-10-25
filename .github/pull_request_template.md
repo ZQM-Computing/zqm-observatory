@@ -1,3 +1,5 @@
+# Pull request
+
 ## What this changes (files + behavior, not just intent)
 
 ## Why (issue/decision link, or "standalone")
@@ -9,7 +11,7 @@ What runs, what it proves, and what it does NOT prove
 
 ## CI on exact head
 
-Test: ___ / Scan: ___ / Other: ___.
+Test: [fill in] / Scan: [fill in] / Other: [fill in].
 Name pre-existing reds instead of hiding them.
 
 ## Risks and fail-closed behavior
@@ -34,4 +36,4 @@ after another PR merges?
 
 ## Blockers
 
-Decision needed from ___ / draft until ___
+Decision needed from [fill in] / draft until [fill in]
