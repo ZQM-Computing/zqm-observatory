@@ -40,6 +40,27 @@ Use one tiny deterministic synthetic dataset (for example, a few points and line
 
 A cross-repository smoke test should only be called **verified** after CI checks out pinned commits (or versioned releases), runs the actual documented commands, compares expected outputs, and uploads the reports as artifacts. Do not make a floating main branch or a green repository-local badge stand in for compatibility evidence.
 
+## First executable handoff: pinned QGIS dataset QA
+
+The initial offline adapter is implemented in `scripts/run_qgis_dataset_qa_handoff.py`; its contract tests are in `tests/test_qgis_dataset_qa_handoff.py`, and CI is defined in `.github/workflows/external-geospatial-qa.yml`.
+
+The workflow checks out `ZQM-Computing/qgis-resources` at the explicit commit `004d037da5301264d3f2ac462d835f2d5c75f8cb`, installs the GDAL command-line and Python bindings, and runs the upstream `scripts/dataset_qa.py` twice against the Observatory's synthetic GeoJSON fixture. It requires the declared `id` and `name` fields, candidate identifier uniqueness, EPSG:4326, zero warnings, zero errors, matching feature count, byte-identical QA reports, and an unchanged input hash. The workflow uploads both reports and a handoff manifest as a short-retention CI artifact.
+
+The manifest captures the pinned producer commit, Python/GDAL versions, invocation contract, fixture hashes, and QA-report hash. It explicitly records that source-rights, privacy, and human release review are not approved. A successful technical QA handoff is not release authorization.
+
+Run locally in an environment with GDAL Python bindings:
+
+```sh
+python -m unittest discover -s tests -p 'test_qgis_dataset_qa_handoff.py' -v
+/usr/bin/python3 scripts/run_qgis_dataset_qa_handoff.py \
+  --qa-script support/qgis-resources/scripts/dataset_qa.py \
+  --fixture tests/fixtures/synthetic-places.geojson \
+  --output-dir build/qgis-dataset-qa-handoff \
+  --producer-commit 004d037da5301264d3f2ac462d835f2d5c75f8cb
+```
+
+CI must be green before this handoff is described as verified. The pinned producer commit is deliberately explicit: updating it requires reviewing the upstream interface and re-running the contract tests.
+
 ## Implementation order
 
 1. Add a small synthetic fixture and manifest contract to the best-owned QA entry point, likely `qgis-resources` or a dedicated integration harness.
