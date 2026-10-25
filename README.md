@@ -71,10 +71,10 @@ This preflight is deliberately bounded to eligible layer metadata. It does not r
 A first offline end-to-end pipeline is available for engineering and CI validation. It uses an invented GeoJSON fixture only; it does not fetch real sources or authorize publication. Run it with:
 
 ```sh
-python scripts/build_synthetic_product.py
+python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
 ```
 
-It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
+It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`, then packages a standards-shaped draft under `build/synthetic-product-bundle/`. The draft intentionally fails the publication gate until a human privacy review is recorded; it is not a publishable product. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
 
 ## First-product release workflow
 
