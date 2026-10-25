@@ -88,6 +88,17 @@ class ProductValidationTests(unittest.TestCase):
         errors = validate_product(product_dir)
         self.assertTrue(any("unsafe data_files entry" in error for error in errors))
 
+    def test_windows_drive_prefixed_paths_are_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        for unsafe_path in ("C:/outside.csv", "C:outside.csv", "z:/nested/file.csv"):
+            with self.subTest(path=unsafe_path):
+                product = json.loads(path.read_text(encoding="utf-8"))
+                product["data_files"] = [unsafe_path]
+                path.write_text(json.dumps(product), encoding="utf-8")
+                errors = validate_product(product_dir)
+                self.assertTrue(any("unsafe data_files entry" in error for error in errors))
+
     def test_dot_and_empty_path_segments_are_rejected(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"
