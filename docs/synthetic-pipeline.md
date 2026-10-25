@@ -133,3 +133,26 @@ python scripts/compare_product_runs.py --before build/run-a/normalized.geojson -
 ```
 
 With `--registry`, comparisons require both run IDs to exist and both file hashes to match. Missing IDs, unknown versions, malformed registries, or content drift fail closed. This does not prove source authority or who approved a run; those remain separate controls.
+
+
+## Deterministic release-evidence manifest
+
+The release-evidence tool ties the exact candidate artifacts, baseline/candidate run identities, change report, release-gate decision, and human review record into one deterministic manifest. It verifies dataset hashes against both the change report and content-addressed baseline registry before producing evidence.
+
+The required review record is JSON with schema version 1 and four independent gates: `source_rights`, `privacy`, `factual_quality`, and `product_owner`. Each gate requires an explicit `approved` decision, reviewer, ISO date, and evidence reference. A pending or missing review fails closed. A blocked change gate or hash mismatch also fails closed.
+
+Example invocation:
+
+```sh
+python scripts/build_release_evidence.py \
+  --product-dir build/synthetic-product \
+  --before-dataset build/synthetic-product/normalized.geojson \
+  --after-dataset build/synthetic-product/normalized.geojson \
+  --registry build/baseline-registry.json \
+  --change-report build/change-report/self-comparison.json \
+  --release-gate build/change-report/release-gate.json \
+  --reviews config/release-reviews.example.json \
+  --output build/release-evidence/manifest.json
+```
+
+The synthetic fixture intentionally records `publication_authorized: false`, so a structurally valid evidence manifest reports `blocked` even when example review fields are populated. The example review file is deliberately pending and must never be treated as actual human approval. Do not replace its values merely to get a green check. Exit code 2 means evidence was built but the candidate remains blocked; exit code 1 means invalid or inconsistent evidence. This manifest is not a signature, approval authority, source license, or tamper-proof ledger.
