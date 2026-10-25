@@ -71,8 +71,8 @@ the cycle, not the other way around.
 
 ## Contact
 
-Questions or corrections: zqmcomputing@gmail.com.
+Questions or corrections: <zqmcomputing@gmail.com>.
 
 ## License
 
-Code in this repository is licensed under the Apache License 2.0 (see LICENSE). Data products published from the Observatory — datasets, maps, and digests — are licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), with attribution to their stated sources. Upstream source licenses still apply to their own data.
+Code in this repository is licensed under the Apache License 2.0 (see LICENSE). Data products published from the Observatory — datasets, maps, and digests — are licensed under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>), with attribution to their stated sources. Upstream source licenses still apply to their own data.
