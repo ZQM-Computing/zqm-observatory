@@ -7,6 +7,8 @@ This is a research register, not a data-ingestion manifest. No datasets are clai
 
 ## Decision summary
 
+**Item-level audit:** [Volusia parks, trails, and transit source audit](item-level-source-audit.md). This metadata-only review records per-layer risks; rights remain blocked and no feature records were sampled.
+
 Recommended first-pass source stack:
 
 1. Volusia County's official park directory and GIS layers for park identity and mapped geometry.
