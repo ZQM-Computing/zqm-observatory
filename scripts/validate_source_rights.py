@@ -88,9 +88,12 @@ def validate_document(document: Any) -> list[str]:
             errors.append(f"{label}.terms_url must be null or a valid HTTPS URL")
         if not iso_date(source["reviewed_at"]):
             errors.append(f"{label}.reviewed_at must be an ISO date")
+
         decision = source["decision"]
-        if decision not in DECISIONS:
+        if not isinstance(decision, str) or decision not in DECISIONS:
             errors.append(f"{label}.decision is not an allowed decision")
+            decision = None
+
         uses = source["permitted_uses"]
         if not isinstance(uses, dict) or set(uses) != USES:
             errors.append(f"{label}.permitted_uses must define exactly: {', '.join(sorted(USES))}")
@@ -99,10 +102,12 @@ def validate_document(document: Any) -> list[str]:
             for use, value in uses.items():
                 if value is not True and value is not False and value is not None:
                     errors.append(f"{label}.permitted_uses.{use} must be true, false, or null")
+
         evidence = source["terms_evidence"]
         if not isinstance(evidence, list) or any(not isinstance(item, str) or not item.strip() for item in evidence):
             errors.append(f"{label}.terms_evidence must be an array of non-empty evidence references")
             evidence = []
+
         if decision in {"APPROVED", "APPROVED_WITH_CONDITIONS", "INTERNAL_ONLY"}:
             if not source["terms_url"] or not evidence:
                 errors.append(f"{label}: {decision} requires a terms_url and retained terms_evidence")
