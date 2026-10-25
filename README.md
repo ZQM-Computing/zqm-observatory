@@ -66,6 +66,7 @@ the cycle, not the other way around.
 - [Scope](docs/scope.md): what the Observatory covers, and where it starts.
 - [Methods](docs/methods.md): how a product is built and verified.
 - [Data sources](docs/data-sources.md): the public source categories products draw on.
+- [Source rights review](docs/source-rights-review.md): the item-level permission and publication gate.
 - [Roadmap](docs/roadmap.md): the stages from here to the first data product.
 - [Contributing](CONTRIBUTING.md): how to propose a data product.
 - [Data](data/README.md): no data products yet, and the license gate for the first one.
