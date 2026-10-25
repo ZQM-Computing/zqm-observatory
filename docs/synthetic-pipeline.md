@@ -223,4 +223,3 @@ signatures. Preserve the ledger, attestations, and trusted public-key records in
 access-controlled or immutable storage, with an external checkpoint/anchor, for
 stronger audit guarantees. CI tests use ephemeral keys and synthetic blocked
 evidence only; CI does not sign production releases or append a release ledger.
-
