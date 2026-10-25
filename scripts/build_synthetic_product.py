@@ -155,6 +155,10 @@ def build(input_path: Path, output_dir: Path) -> int:
             "errors": errors,
         }
         output_dir.mkdir(parents=True, exist_ok=True)
+        for name in ("normalized.geojson", "provenance.json"):
+            target = output_dir / name
+            if target.exists():
+                target.unlink()
         (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
