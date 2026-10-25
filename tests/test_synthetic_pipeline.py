@@ -7,6 +7,7 @@ from pathlib import Path
 
 from scripts.build_synthetic_product import build, write_draft_bundle
 from scripts.verify_synthetic_provenance import verify
+from scripts.compare_product_runs import compare
 from scripts.validate_products import validate_product
 
 
@@ -139,6 +140,79 @@ class SyntheticPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             errors = verify(FIXTURE, Path(tmp))
             self.assertTrue(any("provenance.json cannot be read" in error for error in errors), errors)
+
+
+    def test_change_report_identifies_added_removed_changed_and_extent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            before_input = root / "before-input.geojson"
+            after_input = root / "after-input.geojson"
+            before_input.write_bytes(FIXTURE.read_bytes())
+            source = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            source["features"] = source["features"][:-1]
+            source["features"][0]["properties"]["name"] += " revised"
+            source["features"][0]["geometry"]["coordinates"] = [12.5, 22.5]
+            source["features"].append({
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [40.0, 45.0]},
+                "properties": {"id": "synthetic-added", "name": "Added fixture", "category": "demo"},
+            })
+            after_input.write_text(json.dumps(source), encoding="utf-8")
+            before_dir, after_dir = root / "before", root / "after"
+            self.assertEqual(build(before_input, before_dir), 0)
+            self.assertEqual(build(after_input, after_dir), 0)
+            report, errors = compare(before_dir / "normalized.geojson", after_dir / "normalized.geojson")
+            self.assertEqual(errors, [])
+            self.assertIsNotNone(report)
+            assert report is not None
+            summary = report["summary"]
+            self.assertEqual(summary["added_count"], 1)
+            self.assertEqual(summary["removed_count"], 1)
+            self.assertEqual(summary["changed_count"], 1)
+            self.assertEqual(summary["unchanged_count"], 1)
+            self.assertTrue(summary["extent_changed"])
+            self.assertEqual(report["added_ids"], ["synthetic-added"])
+            self.assertEqual(len(report["removed_ids"]), 1)
+            changed = report["changed_features"][0]
+            self.assertTrue(changed["geometry_changed"])
+            self.assertIn("name", changed["changed_properties"])
+            self.assertEqual(len(report["inputs"]["before"]["sha256"]), 64)
+
+    def test_change_report_ignores_feature_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            original = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            reordered = dict(original)
+            reordered["features"] = list(reversed(original["features"]))
+            before = root / "before.geojson"
+            after = root / "after.geojson"
+            before.write_text(json.dumps(original), encoding="utf-8")
+            after.write_text(json.dumps(reordered), encoding="utf-8")
+            before_dir, after_dir = root / "before-out", root / "after-out"
+            self.assertEqual(build(before, before_dir), 0)
+            self.assertEqual(build(after, after_dir), 0)
+            report, errors = compare(before_dir / "normalized.geojson", after_dir / "normalized.geojson")
+            self.assertEqual(errors, [])
+            self.assertIsNotNone(report)
+            assert report is not None
+            self.assertEqual(report["summary"]["added_count"], 0)
+            self.assertEqual(report["summary"]["removed_count"], 0)
+            self.assertEqual(report["summary"]["changed_count"], 0)
+            self.assertFalse(report["summary"]["extent_changed"])
+
+    def test_change_report_rejects_duplicate_ids_and_malformed_input(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            raw["features"][1]["properties"]["id"] = raw["features"][0]["properties"]["id"]
+            duplicate = root / "duplicate.geojson"
+            duplicate.write_text(json.dumps(raw), encoding="utf-8")
+            malformed = root / "malformed.geojson"
+            malformed.write_text("{broken", encoding="utf-8")
+            report, errors = compare(duplicate, malformed)
+            self.assertIsNone(report)
+            self.assertTrue(any("duplicate feature id" in error for error in errors), errors)
+            self.assertTrue(any("after: cannot read valid UTF-8 JSON" in error for error in errors), errors)
 
 
 if __name__ == "__main__":
