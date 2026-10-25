@@ -21,6 +21,7 @@ on:
       - "scripts/baseline_registry.py"
       - "scripts/evaluate_change_release.py"
       - "scripts/build_release_evidence.py"
+      - "scripts/verify_release_evidence.py"
       - "config/release-reviews.example.json"
       - "config/release-gate-rules.example.json"
       - "config/change-review-rules.example.json"
@@ -105,8 +106,9 @@ jobs:
               json.dump(record, stream)
           PY
           set +e
-          python scripts/build_release_evidence.py --product-dir build/synthetic-product --before-dataset build/synthetic-product/normalized.geojson --after-dataset build/synthetic-product/normalized.geojson --registry build/baseline-registry.json --change-report build/change-report/self-comparison.json --release-gate build/change-report/release-gate.json --reviews build/ci-release-reviews.json --output build/release-evidence/manifest.json
+          python scripts/build_release_evidence.py --product-dir build/synthetic-product --before-dataset build/synthetic-product/normalized.geojson --after-dataset build/synthetic-product/normalized.geojson --registry build/baseline-registry.json --change-report build/change-report/self-comparison.json --release-gate build/change-report/release-gate.json --reviews build/ci-release-reviews.json --release-policy config/release-gate-rules.example.json --output build/release-evidence/manifest.json
           code=$?
           set -e
           test "$code" -eq 2
           python -c "import json; p=json.load(open('build/release-evidence/manifest.json')); assert p['decision'] == 'blocked' and p['publication_authorized_by_manifest'] is False"
+          python scripts/verify_release_evidence.py --manifest build/release-evidence/manifest.json

@@ -362,7 +362,10 @@ class SyntheticPipelineTests(unittest.TestCase):
                 reviews["gates"][name] = {"decision": "approved", "reviewer": "reviewer-example", "reviewed_on": "2026-10-25", "evidence": "test-only evidence"}
             reviews_path = root / "reviews.json"
             reviews_path.write_text(json.dumps(reviews), encoding="utf-8")
-            args = (product, dataset, dataset, registry, change_path, gate_path, reviews_path)
+            policy_path = root / "policy.json"
+            policy = {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}
+            policy_path.write_text(json.dumps(policy), encoding="utf-8")
+            args = (product, dataset, dataset, registry, change_path, gate_path, reviews_path, policy_path)
             manifest_a, errors = build_manifest(*args)
             self.assertEqual(errors, [])
             manifest_b, errors = build_manifest(*args)
@@ -370,6 +373,29 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertEqual(manifest_a, manifest_b)
             self.assertEqual(manifest_a["decision"], "blocked")
             self.assertFalse(manifest_a["publication_authorized_by_manifest"])
+            from scripts.build_release_evidence import canonical_json
+            from scripts.verify_release_evidence import verify_manifest
+            bundle = root / "bundle"
+            bundle.mkdir()
+            source_map = {
+                "normalized_dataset": product / "normalized.geojson",
+                "qa_report": product / "qa-report.json",
+                "provenance": product / "provenance.json",
+                "before_dataset": dataset,
+                "after_dataset": dataset,
+                "baseline_registry": registry,
+                "change_report": change_path,
+                "release_gate_report": gate_path,
+                "release_policy": policy_path,
+                "human_reviews": reviews_path,
+            }
+            for role, source in source_map.items():
+                (bundle / manifest_a["artifacts"][role]["bundle_file"]).write_bytes(source.read_bytes())
+            manifest_path = bundle / "manifest.json"
+            manifest_path.write_bytes(canonical_json(manifest_a))
+            self.assertEqual(verify_manifest(manifest_path), [])
+            (bundle / manifest_a["artifacts"]["release_policy"]["bundle_file"]).write_text('{"block_on_severity":[],"max_removed":99,"require_run_ids":false}', encoding="utf-8")
+            self.assertTrue(any("SHA-256 mismatch" in error for error in verify_manifest(manifest_path)))
             reviews["gates"]["privacy"]["decision"] = "pending"
             reviews_path.write_text(json.dumps(reviews), encoding="utf-8")
             manifest, errors = build_manifest(*args)
@@ -394,12 +420,14 @@ class SyntheticPipelineTests(unittest.TestCase):
             change_path.write_text(json.dumps(change), encoding="utf-8")
             gate_path = root / "gate.json"
             gate_path.write_text(json.dumps({"decision": "eligible_for_human_release_review", "violations": []}), encoding="utf-8")
+            policy_path = root / "policy.json"
+            policy_path.write_text(json.dumps({"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}), encoding="utf-8")
             reviews_path = root / "reviews.json"
             reviews_path.write_text(json.dumps({"schema_version": 1, "review_type": "zqm_observatory_release_reviews", "gates": {
                 name: {"decision": "approved", "reviewer": "reviewer", "reviewed_on": "2026-10-25", "evidence": "record"}
                 for name in ("source_rights", "privacy", "factual_quality", "product_owner")
             }}), encoding="utf-8")
-            manifest, errors = build_manifest(product, dataset, dataset, registry, change_path, gate_path, reviews_path)
+            manifest, errors = build_manifest(product, dataset, dataset, registry, change_path, gate_path, reviews_path, policy_path)
             self.assertIsNone(manifest)
             self.assertTrue(any("hash does not match supplied file" in error for error in errors), errors)
 
