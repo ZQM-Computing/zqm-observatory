@@ -61,3 +61,7 @@ verified, dated, and sourced.
 Every question travels the same cycle: Direction → Collection → Processing →
 Analysis → Dissemination → Feedback → Governance. The software exists to serve
 the cycle, not the other way around.
+
+## License
+
+Code in this repository is licensed under the Apache License 2.0 (see LICENSE). Data products published from the Observatory — datasets, maps, and digests — are licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/), with attribution to their stated sources. Upstream source licenses still apply to their own data.
