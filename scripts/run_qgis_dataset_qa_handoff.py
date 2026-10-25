@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -147,7 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("--producer-commit must be a hexadecimal commit identifier")
     if len(args.producer_commit) < 7:
         parser.error("--producer-commit must contain at least 7 hexadecimal characters")
-    if output_dir == fixture.parent or fixture in output_dir.parents:
+    if output_dir == fixture.parent or fixture.parent in output_dir.parents:
         parser.error("output directory must not be inside the fixture directory")
 
     try:
