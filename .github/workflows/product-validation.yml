@@ -82,3 +82,31 @@ jobs:
           python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --before-id synthetic-v1 --after build/synthetic-product/normalized.geojson --after-id synthetic-v1 --registry build/baseline-registry.json --output build/change-report/self-comparison.json
       - name: Smoke-test change release gate
         run: python scripts/evaluate_change_release.py --report build/change-report/self-comparison.json --rules-json config/release-gate-rules.example.json --output build/change-report/release-gate.json
+      - name: Build fail-closed release evidence manifest
+        run: |
+          python - <<'PY'
+          import json
+          gates = ("source_rights", "privacy", "factual_quality", "product_owner")
+          record = {
+              "schema_version": 1,
+              "review_type": "zqm_observatory_release_reviews",
+              "note": "CI-only test fixture; not approval evidence.",
+              "gates": {
+                  name: {
+                      "decision": "approved",
+                      "reviewer": "CI test fixture",
+                      "reviewed_on": "2026-10-25",
+                      "evidence": "CI-only test fixture; not a real review",
+                  }
+                  for name in gates
+              },
+          }
+          with open("build/ci-release-reviews.json", "w", encoding="utf-8") as stream:
+              json.dump(record, stream)
+          PY
+          set +e
+          python scripts/build_release_evidence.py --product-dir build/synthetic-product --before-dataset build/synthetic-product/normalized.geojson --after-dataset build/synthetic-product/normalized.geojson --registry build/baseline-registry.json --change-report build/change-report/self-comparison.json --release-gate build/change-report/release-gate.json --reviews build/ci-release-reviews.json --output build/release-evidence/manifest.json
+          code=$?
+          set -e
+          test "$code" -eq 2
+          python -c "import json; p=json.load(open('build/release-evidence/manifest.json')); assert p['decision'] == 'blocked' and p['publication_authorized_by_manifest'] is False"
