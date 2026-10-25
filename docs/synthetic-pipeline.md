@@ -110,3 +110,14 @@ external source licenses, source truth, field conditions, or privacy risk in
 real datasets. The provenance record explicitly sets `publication_authorized`
 to `false`. Human rights, privacy, factual, and product review gates remain
 mandatory for any future real-source product.
+
+## Baseline identity and release-gate evaluation
+
+Supply explicit immutable/versioned run identifiers when comparing a baseline and candidate. Avoid mutable labels such as “latest”:
+
+```sh
+python scripts/compare_product_runs.py --before build/run-a/normalized.geojson --before-id places-v1 --after build/run-b/normalized.geojson --after-id places-v2 --output build/change-report/change.json
+python scripts/evaluate_change_release.py --report build/change-report/change.json --rules-json config/release-gate-rules.example.json --output build/change-report/release-gate.json
+```
+
+The example policy requires both run IDs, blocks critical-severity changes, and blocks any removals. The evaluator exits 2 when policy blocks the candidate, 1 for invalid inputs/policy, and 0 when eligible for human release review. Eligibility is not publication authorization: source rights, data quality, factual review, privacy, and product-owner approval remain independent gates. IDs are supplied labels; content hashes are not digital signatures.

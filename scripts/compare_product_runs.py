@@ -124,9 +124,11 @@ def load_review_rules(path: Path | None) -> tuple[dict[str, Any] | None, str | N
     return rules, hashlib.sha256(raw).hexdigest(), None
 
 
-def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0, rules_path: Path | None = None) -> tuple[dict[str, Any] | None, list[str]]:
+def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0.0, rules_path: Path | None = None, before_id: str | None = None, after_id: str | None = None) -> tuple[dict[str, Any] | None, list[str]]:
     if not math.isfinite(movement_threshold_m) or movement_threshold_m < 0:
         return None, ["movement threshold must be a finite non-negative number"]
+    if (before_id is not None and not before_id.strip()) or (after_id is not None and not after_id.strip()):
+        return None, ["run identifiers, when supplied, must be non-empty strings"]
     rules, rules_sha256, rules_error = load_review_rules(rules_path)
     if rules_error or rules is None:
         return None, [rules_error or "review rules are invalid"]
@@ -175,8 +177,8 @@ def compare(before_path: Path, after_path: Path, movement_threshold_m: float = 0
         "schema_version": 1,
         "report_type": "geojson_feature_change_impact",
         "inputs": {
-            "before": {"path": before_path.name, "sha256": sha256_file(before_path)},
-            "after": {"path": after_path.name, "sha256": sha256_file(after_path)},
+            "before": {"path": before_path.name, "run_id": before_id, "sha256": sha256_file(before_path)},
+            "after": {"path": after_path.name, "run_id": after_id, "sha256": sha256_file(after_path)},
         },
         "review_configuration": {"default_severity": rules["default"], "geometry_severity": rules["geometry"], "property_severities": rules["properties"], "rules_sha256": rules_sha256},
         "summary": {
@@ -211,8 +213,10 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path, help="path for the JSON change report")
     parser.add_argument("--movement-threshold-meters", type=float, default=0.0, help="heuristic great-circle movement threshold in meters (default: 0; not a significance or accuracy claim)")
     parser.add_argument("--rules-json", type=Path, help="optional JSON review rules mapping changed fields to review severities")
+    parser.add_argument("--before-id", help="explicit immutable/versioned identifier for the baseline run")
+    parser.add_argument("--after-id", help="explicit immutable/versioned identifier for the candidate run")
     args = parser.parse_args()
-    report, errors = compare(args.before, args.after, args.movement_threshold_meters, args.rules_json)
+    report, errors = compare(args.before, args.after, args.movement_threshold_meters, args.rules_json, args.before_id, args.after_id)
     if errors or report is None:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
