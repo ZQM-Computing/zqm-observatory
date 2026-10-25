@@ -8,11 +8,11 @@
 
 The County Open_Data_4 service exposes a polyline layer named **Trails (32)** with fields for names, use type, subtype, surface, width, segment miles, managing party, owner, and shape length. Its metadata has a blank description and blank copyright text. A separate point layer named **Trail Features (30)** is described as “County and City parks within Volusia County.” It should not be treated as trailheads or trail features without record-level evidence. The service reports WKID 2881 and feet; preserve that source CRS and document any transformation.
 
-- County layer catalog: https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/layers
-- Trails layer 32: https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32
-- Trail Features layer 30: https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/30
-- County legacy existing-trails catalog: https://maps.vcgov.org/gis/data/ExistingTrails.htm
-- County Trails Master Plan page: https://www.volusia.org/services/community-services/parks-recreation-and-culture/parks-and-trails/trails/
+- County layer catalog: [FeatureServer layers](https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/layers)
+- Trails layer 32: [FeatureServer layer 32](https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32)
+- Trail Features layer 30: [FeatureServer layer 30](https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/30)
+- County legacy existing-trails catalog: [Existing Trails catalog](https://maps.vcgov.org/gis/data/ExistingTrails.htm)
+- County Trails Master Plan page: [Trails and Trails Master Plan](https://www.volusia.org/services/community-services/parks-recreation-and-culture/parks-and-trails/trails/)
 
 ## Evidence matrix
 
@@ -30,8 +30,8 @@ The County Open_Data_4 service exposes a polyline layer named **Trails (32)** wi
 
 FDOT's SUN Trail Mapping Information page states that its data may lag administrative changes and recent Office of Greenways and Trails actions. Its status values reflect investment/status conditions and do not by themselves determine user modes or community need. FDOT publishes a St. Johns Loop “At-A-Glance” map updated August 2026 and a “Connecting the Gaps” map updated September 2026. These are stronger, dated regional cross-checks than undated screenshots, but still planning/network evidence rather than a local condition audit.
 
-- FDOT mapping guidance and current map dates: https://www.fdot.gov/planning/systems/systems-management/SUNTrail/maps.shtm
-- Example regional project record: https://www.cflroads.com/project/439865-1 (US 1 St. Johns Loop, approximately 18-mile PD&E study intended to address a trail gap; last updated August 6, 2026).
+- FDOT mapping guidance and current map dates: [SUN Trail Mapping Information](https://www.fdot.gov/planning/systems/systems-management/SUNTrail/maps.shtm)
+- Example regional project record: [US 1 St. Johns Loop project](https://www.cflroads.com/project/439865-1) (approximately 18-mile PD&E study intended to address a trail gap; last updated August 6, 2026).
 
 Do not collapse “existing,” “programmed,” “partially programmed,” “gap/unknown,” “under construction,” and “planned” into one Boolean field. Store source-native status and a separate Observatory interpretation with rationale and evidence citation.
 
