@@ -61,6 +61,14 @@ class SourceRightsValidatorTests(unittest.TestCase):
         document["sources"][0]["unresolved_questions"] = []
         self.assertTrue(any("blocked source must state unresolved questions" in error for error in validate_document(document)))
 
+    def test_malformed_decision_is_rejected_without_crashing(self):
+        for invalid in ([], {}, None, 7):
+            with self.subTest(invalid=invalid):
+                document = copy.deepcopy(REGISTER)
+                document["sources"][0]["decision"] = invalid
+                errors = validate_document(document)
+                self.assertTrue(any("decision is not an allowed decision" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
