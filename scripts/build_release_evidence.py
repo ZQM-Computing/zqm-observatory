@@ -9,7 +9,13 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+from shutil import copyfile
 from typing import Any
+
+try:
+    from scripts.evaluate_change_release import evaluate
+except ModuleNotFoundError:
+    from evaluate_change_release import evaluate
 
 try:
     from scripts.baseline_registry import verify_entry
@@ -74,7 +80,7 @@ def validate_reviews(value: dict[str, Any]) -> list[str]:
 
 def build_manifest(
     product_dir: Path, before_path: Path, after_path: Path, registry_path: Path,
-    change_path: Path, gate_path: Path, reviews_path: Path,
+    change_path: Path, gate_path: Path, reviews_path: Path, policy_path: Path,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     errors: list[str] = []
     provenance, e = read_json(product_dir / "provenance.json", "provenance.json")
@@ -89,9 +95,11 @@ def build_manifest(
     errors.extend(e)
     registry, e = read_json(registry_path, "baseline registry")
     errors.extend(e)
+    policy, e = read_json(policy_path, "release policy")
+    errors.extend(e)
     if errors:
         return None, errors
-    assert provenance is not None and qa is not None and change is not None and gate is not None and reviews is not None and registry is not None
+    assert provenance is not None and qa is not None and change is not None and gate is not None and reviews is not None and registry is not None and policy is not None
 
     errors.extend(validate_reviews(reviews))
     if qa.get("status") != "passed":
@@ -165,6 +173,15 @@ def build_manifest(
             errors.append(f"{side} registry hash does not match dataset")
     if gate.get("decision") == "blocked":
         errors.append("change release gate is blocked")
+    recomputed_gate, policy_errors = evaluate(change, policy)
+    errors.extend(f"release policy evaluation: {message}" for message in policy_errors)
+    if recomputed_gate is not None:
+        if gate.get("decision") != recomputed_gate.get("decision"):
+            errors.append("release-gate decision does not match recomputed decision")
+        if gate.get("policy") != recomputed_gate.get("policy"):
+            errors.append("release-gate policy does not match supplied policy")
+        if gate.get("violations") != recomputed_gate.get("violations"):
+            errors.append("release-gate violations do not match recomputed violations")
 
     if errors:
         return None, errors
@@ -183,10 +200,15 @@ def build_manifest(
         "baseline_registry": registry_path,
         "change_report": change_path,
         "release_gate_report": gate_path,
+        "release_policy": policy_path,
         "human_reviews": reviews_path,
     }
     for name, path in paths.items():
-        artifacts[name] = {"file_name": path.name, "sha256": sha256_file(path)}
+        artifacts[name] = {
+            "file_name": path.name,
+            "sha256": sha256_file(path),
+            "bundle_file": f"{name}{path.suffix or '.bin'}",
+        }
     manifest = {
         "schema_version": 1,
         "manifest_type": "zqm_observatory_release_evidence",
@@ -196,6 +218,7 @@ def build_manifest(
         "review_decisions": review_decisions,
         "provenance_publication_authorized": provenance_authorized,
         "artifacts": artifacts,
+        "evidence_format": "self-contained sibling artifacts; verify with scripts/verify_release_evidence.py",
         "run_identity": {
             "before_run_id": change["inputs"]["before"]["run_id"],
             "after_run_id": change["inputs"]["after"]["run_id"],
@@ -220,13 +243,33 @@ def main() -> int:
     parser.add_argument("--change-report", required=True, type=Path)
     parser.add_argument("--release-gate", required=True, type=Path)
     parser.add_argument("--reviews", required=True, type=Path)
+    parser.add_argument("--release-policy", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
-    manifest, errors = build_manifest(args.product_dir, args.before_dataset, args.after_dataset, args.registry, args.change_report, args.release_gate, args.reviews)
+    manifest, errors = build_manifest(args.product_dir, args.before_dataset, args.after_dataset, args.registry, args.change_report, args.release_gate, args.reviews, args.release_policy)
     if errors or manifest is None:
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    paths = {
+        "normalized_dataset": args.product_dir / "normalized.geojson",
+        "qa_report": args.product_dir / "qa-report.json",
+        "provenance": args.product_dir / "provenance.json",
+        "before_dataset": args.before_dataset,
+        "after_dataset": args.after_dataset,
+        "baseline_registry": args.registry,
+        "change_report": args.change_report,
+        "release_gate_report": args.release_gate,
+        "release_policy": args.release_policy,
+        "human_reviews": args.reviews,
+    }
+    for name, source in paths.items():
+        destination = args.output.parent / manifest["artifacts"][name]["bundle_file"]
+        if source.resolve() != destination.resolve():
+            copyfile(source, destination)
+        if sha256_file(destination) != manifest["artifacts"][name]["sha256"]:
+            print(f"ERROR: copied artifact hash mismatch: {name}", file=sys.stderr)
+            return 1
     args.output.write_bytes(canonical_json(manifest))
     print(f"Release evidence: {manifest['decision']}; manifest does not itself authorize publication.")
     return 0 if manifest["decision"] == "release_authorized" else 2
