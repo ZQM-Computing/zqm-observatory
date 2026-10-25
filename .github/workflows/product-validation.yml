@@ -17,6 +17,7 @@ on:
       - "scripts/validate_products.py"
       - "scripts/build_synthetic_product.py"
       - "scripts/verify_synthetic_provenance.py"
+      - "scripts/compare_product_runs.py"
       - "docs/synthetic-pipeline.md"
       - "scripts/validate_source_rights.py"
       - "scripts/audit_source_metadata.py"
@@ -68,3 +69,5 @@ jobs:
         run: python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
       - name: Verify synthetic provenance and change detection
         run: python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product
+      - name: Smoke-test product change report
+        run: python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --after build/synthetic-product/normalized.geojson --output build/change-report/self-comparison.json
