@@ -55,6 +55,8 @@ class MetadataPreflightTests(unittest.TestCase):
             "https://example.com/FeatureServer/32",
             "http://maps5.vcgov.org/FeatureServer/32",
             "https://maps5.vcgov.org/FeatureServer/32?where=1%3D1",
+            "https://maps5.vcgov.org:bad/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32",
+            "https://maps5.vcgov.org/arcgis/rest/services/Other/FeatureServer/32",
         ):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(layer_metadata_url(invalid)[0])
@@ -85,6 +87,19 @@ class MetadataPreflightTests(unittest.TestCase):
         self.assertEqual(opener.timeout, 15)
         self.assertNotIn("where=", opener.request.full_url)
         self.assertNotIn("outFields=", opener.request.full_url)
+
+    def test_oversized_response_fails_closed(self):
+        from audit_source_metadata import MAX_RESPONSE_BYTES
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        result = capture_one(source, opener=FakeOpener(FakeResponse(b"x" * (MAX_RESPONSE_BYTES + 1))))
+        self.assertEqual(result["status"], "ERROR")
+        self.assertIn("exceeds", result["reason"])
+
+    def test_non_json_response_fails_closed(self):
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        result = capture_one(source, opener=FakeOpener(FakeResponse(b"not json", content_type="text/html")))
+        self.assertEqual(result["status"], "ERROR")
+        self.assertIn("content type", result["reason"])
 
     def test_non_layer_gtfs_index_is_skipped_without_request(self):
         source = next(s for s in REGISTER["sources"] if s["id"] == "votran-official-gtfs")
