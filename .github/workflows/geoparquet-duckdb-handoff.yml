@@ -1,0 +1,72 @@
+name: GeoParquet and DuckDB handoff
+
+on:
+  pull_request:
+    paths:
+      - "scripts/run_geoparquet_duckdb_handoff.py"
+      - "tests/test_geoparquet_duckdb_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/geoparquet-duckdb-handoff.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/run_geoparquet_duckdb_handoff.py"
+      - "tests/test_geoparquet_duckdb_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/geoparquet-duckdb-handoff.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geoparquet-duckdb-handoff-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test source and provenance contracts without network
+        run: python -m unittest discover -s tests -p 'test_geoparquet_duckdb_handoff.py' -v
+
+  pinned-geoparquet-duckdb-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out pinned GeoParquet cookbook
+        uses: actions/checkout@v4
+        with:
+          repository: ZQM-Computing/geoparquet-cookbook
+          ref: 4433a6e561659e880d9e59529159ac4fe1d9c6fe
+          path: support/geoparquet-cookbook
+          persist-credentials: false
+      - name: Check out pinned DuckDB Spatial cookbook
+        uses: actions/checkout@v4
+        with:
+          repository: ZQM-Computing/duckdb-spatial-cookbook
+          ref: a38e038d2d02eb83b4b94690af7f9d4c885902ea
+          path: support/duckdb-spatial-cookbook
+          persist-credentials: false
+      - name: Install pinned Python runtime
+        run: |
+          python -m pip install --disable-pip-version-check             geopandas==1.1.1 pyarrow==21.0.0 duckdb==1.4.1 shapely==2.1.2 pyproj==3.7.2
+      - name: Provision DuckDB Spatial extension
+        run: |
+          python -c "import duckdb; c=duckdb.connect(); c.execute('INSTALL spatial'); c.execute('LOAD spatial'); print('DuckDB Spatial loaded:', duckdb.__version__); c.close()"
+      - name: Run GeoParquet metadata and DuckDB aggregate QA
+        run: |
+          python scripts/run_geoparquet_duckdb_handoff.py             --fixture tests/fixtures/synthetic-places.geojson             --output-dir build/geoparquet-duckdb-handoff             --geoparquet-commit 4433a6e561659e880d9e59529159ac4fe1d9c6fe             --duckdb-commit a38e038d2d02eb83b4b94690af7f9d4c885902ea
+      - name: Upload reproducible handoff evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: geoparquet-duckdb-handoff
+          path: build/geoparquet-duckdb-handoff/
+          if-no-files-found: error
+          retention-days: 14
