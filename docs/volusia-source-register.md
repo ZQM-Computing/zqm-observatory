@@ -235,6 +235,10 @@ For every candidate layer/feed, record:
 
 Until these questions are resolved, source discovery can continue, but republication and strong claims remain blocked.
 
+## Rights review before collection
+
+Use the [source rights review workflow](source-rights-review.md) to document item-level terms and intended uses. County GIS layers, municipal datasets, and VOTRAN feeds remain blocked for public redistribution until the applicable terms support the specific collection and publication plan. Do not treat portal availability, a blank copyright field, or a warranty disclaimer as permission.
+
 ## Related repository standards
 
 - [Data source overview](data-sources.md)
