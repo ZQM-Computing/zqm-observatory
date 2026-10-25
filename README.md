@@ -29,9 +29,10 @@ The Observatory is focused on:
    authorized targets only.
 3. **Verify before claim.** Source, retrieval date, and method on every product.
 4. **No purchases, ever.** The entire stack is free and open-source.
-5. **Aggregates, never individuals.** Games telemetry feeds place intelligence
-   only as anonymized, aggregated exports — no individual tracks, no personal
-   data, no children's identifiable data, ever.
+5. **Privacy and product separation.** Report only sourced public-place facts
+   and appropriately aggregated public data. No individual tracks, personal
+   data, or identifiable children's data. ZQM Labs game telemetry is outside
+   Observatory scope and is not ingested, joined, or used as evidence.
 
 ## What it ships
 
@@ -39,11 +40,11 @@ The Observatory is focused on:
 - A weekly intel digest (dated report).
 - Community briefs — safety, situational, operational, and family-life
   intelligence for communities.
-- Family guides — safe, family-friendly places and activities, built from place
-  intelligence and games telemetry.
-- Telemetry-enhanced place intelligence (aggregated, anonymized only): which
-  places people actually use and enjoy, and field-verified place conditions
-  from play.
+- Family guides — sourced public places and activities, with access
+  details and conditions clearly distinguished between published claims and
+  field-verified observations.
+- Reproducible source registers, capture metadata, geospatial QA reports, and
+  correction histories that let others audit how a claim was produced.
 - Demos, dashboards, and public methods — code, pipelines, and documentation
   other practitioners can reuse.
 
