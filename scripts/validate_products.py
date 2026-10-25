@@ -48,6 +48,15 @@ def validate_product(path: Path) -> list[str]:
     match = PRODUCT_DIR.fullmatch(folder)
     if not match:
         errors.append(f"{path}: directory must be named YYYY-MM-DD-lowercase-slug")
+    if path.is_symlink():
+        return [f"{path}: product directory must not be a symlink"]
+    if not path.is_dir():
+        return [f"{path}: product path must be a directory"]
+    # A bundle is an untrusted publication boundary. Reject links anywhere in
+    # it before reading metadata or method files, not just declared data assets.
+    linked_paths = sorted(item for item in path.rglob("*") if item.is_symlink())
+    if linked_paths:
+        return [f"{item}: symlinks are not allowed inside product bundles" for item in linked_paths]
     product = read_json(path / "product.json", errors)
     sources = read_json(path / "sources.json", errors)
     if not isinstance(product, dict) or not isinstance(sources, list):
@@ -91,6 +100,20 @@ def validate_product(path: Path) -> list[str]:
         if not candidate.is_file():
             errors.append(f"{path}/product.json: listed data file does not exist: {item}")
 
+    # Every regular file in a product bundle must be declared as a data asset
+    # or be one of the three standard metadata/method files. This prevents an
+    # unlisted sidecar from bypassing review and publication inventory.
+    declared_files = {
+        item for item in data_files
+        if isinstance(item, str) and item and not Path(item).is_absolute()
+        and ".." not in Path(item).parts
+    }
+    allowed_files = {"product.json", "sources.json", "method.md"} | declared_files
+    for candidate in sorted(item for item in path.rglob("*") if item.is_file()):
+        relative = candidate.relative_to(path).as_posix()
+        if relative not in allowed_files:
+            errors.append(f"{path}: undeclared file in product bundle: {relative}")
+
     field = product.get("field_verification")
     if not isinstance(field, dict) or field.get("status") not in {"verified", "not_verified", "not_applicable"} or not isinstance(field.get("notes"), str) or not field["notes"].strip():
         errors.append(f"{path}/product.json: field_verification needs status and explanatory notes")
@@ -133,15 +156,23 @@ def validate_product(path: Path) -> list[str]:
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
         parsed_url = urlparse(url) if isinstance(url, str) else None
-        if (
-            parsed_url is None
-            or parsed_url.scheme != "https"
-            or not parsed_url.hostname
-            or parsed_url.username is not None
-            or parsed_url.password is not None
-            or any(ch.isspace() for ch in url)
-        ):
-            errors.append(f"{label}: url must be a valid HTTPS URL with a hostname and no embedded credentials")
+        valid_url = False
+        if parsed_url is not None:
+            try:
+                # Accessing .port validates malformed port syntax as well.
+                port = parsed_url.port
+                valid_url = (
+                    parsed_url.scheme == "https"
+                    and bool(parsed_url.hostname)
+                    and parsed_url.username is None
+                    and parsed_url.password is None
+                    and not any(ch.isspace() for ch in url)
+                    and (port is None or 1 <= port <= 65535)
+                )
+            except ValueError:
+                valid_url = False
+        if not valid_url:
+            errors.append(f"{label}: url must be a valid HTTPS URL with a hostname, valid port, and no embedded credentials")
         if not is_iso_date(source.get("retrieval_date")):
             errors.append(f"{label}: retrieval_date must be YYYY-MM-DD")
         if not isinstance(source.get("supports"), list) or not source["supports"] or any(not isinstance(x, str) or not x.strip() for x in source["supports"]):
@@ -165,8 +196,10 @@ def validate_product(path: Path) -> list[str]:
 
 
 def validate_data_dir(data_dir: Path) -> list[str]:
+    if data_dir.is_symlink():
+        return [f"{data_dir}: data directory must not be a symlink"]
     if not data_dir.is_dir():
-        return [f"{data_dir}: data directory does not exist"]
+        return [f"{data_dir}: data directory does not exist or is not a directory"]
     products = sorted(p for p in data_dir.iterdir() if p.is_dir() and not p.name.startswith("."))
     errors: list[str] = []
     for product_dir in products:
