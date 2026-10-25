@@ -1,12 +1,8 @@
 # ZQM Observatory
 
-A self-hosted, open-source observatory that turns public data into mapped,
-verifiable intelligence — GEOINT (land, water, infrastructure, imagery,
-sensors) and OSINT (entities, domains, records, signals) fused into one picture.
+ZQM Observatory is an open-source geospatial intelligence and public-data research project for source-attributed maps, geospatial QA, imagery discovery, and community briefs. It combines GEOINT methods for land, water, infrastructure, and imagery with OSINT methods for public records and signals.
 
-**Volusia County, Florida is the proving ground, not the boundary.** The
-pattern is built to travel anywhere public data allows, and the AI tools grown
-on it are meant for everyone's use.
+**Volusia County, Florida is the proving ground, not the boundary.** Observatory remains at Stage 0: no live service or published data product is claimed until its sources, methods, and outputs are verified.
 
 ## Focus
 
