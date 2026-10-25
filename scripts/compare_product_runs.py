@@ -10,7 +10,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from scripts.baseline_registry import verify_entry
+try:
+    from scripts.baseline_registry import verify_entry
+except ModuleNotFoundError:  # Direct script execution puts scripts/ on sys.path.
+    from baseline_registry import verify_entry
 
 
 def canonical_json(value: Any) -> bytes:
