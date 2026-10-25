@@ -76,12 +76,16 @@ The initial product should remain an inventory of sourced places and mapped feat
 ### B1. VOTRAN official documents and data
 
 - **Official index:** [VOTRAN Documents & Data](https://www.votran.org/documents-data/)
-- **Current GTFS/GIS files:** use agency files linked from this index; capture exact download URL, effective date, retrieval time, feed metadata and checksum.
-- **Relevant documents listed:** Transit Development Plan (TDP), 2025 minor update, Transit Asset Management Plan (October 2025), fare policy and rider/service policies.
-- **Use:** dated route/stop/schedule information and agency planning context, subject to the exact feed's reuse terms.
-- **Freshness:** County GIS Bus Stops and Bus Routes describe their source as downloaded in February 2023. Do not treat these as current service truth. Compare stop IDs, route IDs, shapes and service calendars with the agency's current dated GTFS feed.
-- **GTFS QA:** validate feed structure; unique stop/route keys; stop-time references; calendar/calendar-date service validity; shape continuity; coordinate ranges; and referential integrity. A stop's wheelchair-boarding field is not a field audit of sidewalk, curb, shelter, boarding pad, or physical accessibility.
-- **Rights:** do not assume a downloadable GTFS feed is unrestricted. Check agency terms and any feed license.
+- **Agency-listed feed:** the index currently lists a GTFS file effective October 4, 2026. Treat that date as the agency page's listed effective date, not a permanent “current” label; recheck the index at each collection.
+- **Direct feed endpoint observed in the third-party Transitland catalog:** [VOTRAN static GTFS endpoint](https://realtimevotran.availtec.com/InfoPoint/gtfs-zip.ashx). Use the agency index as the discovery/authority path and confirm the endpoint target before retrieval. Do not treat a third-party catalog as the licensor.
+- **Independent feed-catalog cross-check:** Transitland reported feed version 20261007, service dates 2026-10-07 through 2027-10-02, 20 routes, 1,303 stops, 1,072 trips and 47,850 stop-time rows for its latest observed version on the research date. These are third-party-observed counts, not yet a locally downloaded or independently validated snapshot; reconcile them against the exact agency download before relying on them.
+- **Relevant agency documents listed:** Transit Development Plan (TDP), 2025 minor update, Transit Asset Management Plan (October 2025), fare policy and rider/service policies. Plans describe planning and investment context, not a substitute for dated scheduled-service data.
+- **Use:** dated route/stop/schedule information and agency planning context, subject to exact feed reuse terms.
+- **Freshness:** County GIS Bus Stops and Bus Routes describe their source as downloaded in February 2023. Do not treat these as current service truth. Compare stop IDs, route IDs, shapes, service calendars and exceptions with the agency's current dated GTFS feed.
+- **Minimum reproducible feed capture:** record UTC retrieval timestamp, final resolved URL, HTTP status/content type, byte size, SHA-256 checksum, feed_info.txt version and dates, and agency page's displayed effective date. Preserve the original ZIP unchanged and keep derived outputs separate.
+- **GTFS QA:** validate ZIP integrity and required files; parse every table; test primary-key uniqueness and foreign-key references; validate date ranges and calendar exceptions; confirm times beyond 24:00 are handled correctly; check stop coordinates and shape sequence/continuity; reconcile route/trip/stop counts; and record all warnings. Evaluate the feed for a named service date, not simply today's date or the overall feed range.
+- **Accessibility limit:** a stop's wheelchair_boarding or a trip's accessibility field is a feed assertion, not a field audit of sidewalk, curb, shelter, boarding pad, path continuity, or physical accessibility.
+- **Rights:** do not assume a downloadable GTFS feed is unrestricted. Check the agency's terms and any feed license; retain evidence of the applicable terms with the collection record. If terms are unclear, use the feed for internal evaluation only until clarified and do not republish source files or derivatives.
 
 ### B2. VOTRAN Transit Development Plan and Transportation Disadvantaged Service Plan
 
@@ -221,7 +225,7 @@ For every candidate layer/feed, record:
 1. What are the item-level license and redistribution terms for County Park Locations, Park Boundaries, Trails and Cities Dissolved Weekly?
 2. What do each park amenity flag and status/ownership field mean, including nulls and coded values?
 3. What is the actual last-update date for each County layer, and how are retired features handled?
-4. Is there a current official VOTRAN GTFS feed with explicit reuse terms and effective dates? How often is it updated?
+4. What exact reuse terms apply to the agency-listed VOTRAN GTFS download, and how often is it updated? Reconcile the agency page's October 4, 2026 effective-date label with the exact downloaded feed's feed_info.txt and service calendars.
 5. If New Smyrna Beach is selected, which city GIS layers are downloadable, what are their item IDs and terms, and which organization is authoritative for each park?
 6. Which trail-map categories mean existing, planned, proposed or funded, and what is the latest adopted plan/version?
 7. Is there a current municipal parks inventory/master plan superseding the available New Smyrna Beach plan?
