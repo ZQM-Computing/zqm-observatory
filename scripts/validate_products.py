@@ -25,12 +25,38 @@ PRODUCT_REQUIRED = {
 SOURCE_REQUIRED = {"id", "title", "publisher", "url", "retrieval_date", "license", "supports"}
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def read_json(path: Path, errors: list[str]) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         errors.append(f"{path}: cannot read valid JSON ({exc})")
         return None
+
+
+def safe_relative_file(value: Any) -> bool:
+    if not isinstance(value, str) or not value or "\\" in value:
+        return False
+    candidate = Path(value)
+    # Require portable, canonical relative paths; reject empty/dot segments,
+    # absolute paths, traversal, and control characters.
+    parts = value.split("/")
+    return (
+        not candidate.is_absolute()
+        and all(part not in {"", ".", ".."} for part in parts)
+        and not any(ord(char) < 32 or ord(char) == 127 for char in value)
+    )
 
 
 def is_iso_date(value: Any) -> bool:
@@ -84,7 +110,7 @@ def validate_product(path: Path) -> list[str]:
     if all(isinstance(item, str) for item in data_files) and len(data_files) != len(set(data_files)):
         errors.append(f"{path}/product.json: data_files entries must be unique")
     for item in data_files:
-        if not isinstance(item, str) or not item or Path(item).is_absolute() or ".." in Path(item).parts:
+        if not safe_relative_file(item):
             errors.append(f"{path}/product.json: unsafe data_files entry: {item!r}")
             continue
         candidate = path / item
@@ -105,8 +131,7 @@ def validate_product(path: Path) -> list[str]:
     # unlisted sidecar from bypassing review and publication inventory.
     declared_files = {
         item for item in data_files
-        if isinstance(item, str) and item and not Path(item).is_absolute()
-        and ".." not in Path(item).parts
+        if safe_relative_file(item)
     }
     allowed_files = {"product.json", "sources.json", "method.md"} | declared_files
     for candidate in sorted(item for item in path.rglob("*") if item.is_file()):
@@ -155,19 +180,22 @@ def validate_product(path: Path) -> list[str]:
             if not isinstance(source.get(key), str) or not source[key].strip():
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
-        parsed_url = urlparse(url) if isinstance(url, str) else None
         valid_url = False
-        if parsed_url is not None:
+        if isinstance(url, str):
             try:
-                # Accessing .port validates malformed port syntax as well.
+                parsed_url = urlparse(url)
+                # Accessing hostname/port also validates malformed IPv6 and
+                # port syntax; keep all parser-dependent work in this guard.
+                hostname = parsed_url.hostname
                 port = parsed_url.port
                 valid_url = (
                     parsed_url.scheme == "https"
-                    and bool(parsed_url.hostname)
+                    and bool(hostname)
                     and parsed_url.username is None
                     and parsed_url.password is None
                     and not any(ch.isspace() for ch in url)
                     and (port is None or 1 <= port <= 65535)
+                    and not any(ord(ch) < 32 or ord(ch) == 127 for ch in url)
                 )
             except ValueError:
                 valid_url = False
@@ -190,8 +218,14 @@ def validate_product(path: Path) -> list[str]:
             errors.append(f"{path}: product source_ids must match sources.json IDs")
     if not (path / "method.md").is_file():
         errors.append(f"{path}: method.md is required")
-    elif len((path / "method.md").read_text(encoding="utf-8").strip()) < 100:
-        errors.append(f"{path}/method.md: method must explain reproducible steps (at least 100 characters)")
+    else:
+        try:
+            method_text = (path / "method.md").read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"{path}/method.md: cannot read UTF-8 method text ({exc})")
+        else:
+            if len(method_text.strip()) < 100:
+                errors.append(f"{path}/method.md: method must explain reproducible steps (at least 100 characters)")
     return errors
 
 

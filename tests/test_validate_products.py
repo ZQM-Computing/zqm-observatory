@@ -64,6 +64,48 @@ class ProductValidationTests(unittest.TestCase):
         product_dir = self.make_product()
         self.assertEqual(validate_product(product_dir), [])
 
+    def test_duplicate_json_keys_are_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace('"title": "Volusia community brief",', '"title": "First title", "title": "Second title",')
+        path.write_text(text, encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("duplicate JSON object key" in error for error in errors))
+
+    def test_invalid_utf8_json_fails_without_crashing(self) -> None:
+        product_dir = self.make_product()
+        (product_dir / "product.json").write_bytes(b'{"title":"\\xff"}')
+        errors = validate_product(product_dir)
+        self.assertTrue(any("cannot read valid JSON" in error for error in errors))
+
+    def test_windows_style_path_is_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["data_files"] = ["..\\outside.csv"]
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("unsafe data_files entry" in error for error in errors))
+
+    def test_dot_and_empty_path_segments_are_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["data_files"] = ["./brief.csv"]
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("unsafe data_files entry" in error for error in errors))
+
+    def test_malformed_ipv6_url_fails_without_crashing(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        sources[0]["url"] = "https://[not-an-ipv6-address]/dataset"
+        path.write_text(json.dumps(sources), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("valid HTTPS URL" in error for error in errors))
+
     def test_missing_data_file_fails(self) -> None:
         product_dir = self.make_product()
         (product_dir / "brief.csv").unlink()
