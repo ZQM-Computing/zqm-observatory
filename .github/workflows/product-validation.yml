@@ -18,6 +18,7 @@ on:
       - "scripts/build_synthetic_product.py"
       - "scripts/verify_synthetic_provenance.py"
       - "scripts/compare_product_runs.py"
+      - "scripts/baseline_registry.py"
       - "scripts/evaluate_change_release.py"
       - "config/release-gate-rules.example.json"
       - "config/change-review-rules.example.json"
@@ -73,7 +74,9 @@ jobs:
         run: python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle
       - name: Verify synthetic provenance and change detection
         run: python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product
-      - name: Smoke-test product change report
-        run: python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --before-id synthetic-v1 --after build/synthetic-product/normalized.geojson --after-id synthetic-v1 --output build/change-report/self-comparison.json
+      - name: Smoke-test baseline registry and product change report
+        run: |
+          python scripts/baseline_registry.py register --registry build/baseline-registry.json --run-id synthetic-v1 --dataset build/synthetic-product/normalized.geojson --pipeline-version 0.1.0 --description "CI synthetic fixture"
+          python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --before-id synthetic-v1 --after build/synthetic-product/normalized.geojson --after-id synthetic-v1 --registry build/baseline-registry.json --output build/change-report/self-comparison.json
       - name: Smoke-test change release gate
         run: python scripts/evaluate_change_release.py --report build/change-report/self-comparison.json --rules-json config/release-gate-rules.example.json --output build/change-report/release-gate.json
