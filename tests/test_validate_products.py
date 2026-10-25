@@ -88,6 +88,37 @@ class ProductValidationTests(unittest.TestCase):
         errors = validate_product(product_dir)
         self.assertTrue(any("unsafe data_files entry" in error for error in errors))
 
+    def test_https_url_requires_a_real_hostname(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        sources[0]["url"] = "https://"
+        path.write_text(json.dumps(sources), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("valid HTTPS URL" in error for error in errors))
+
+    def test_duplicate_declared_sources_fail(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["source_ids"] = ["local-open-data", "local-open-data"]
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("source_ids must be unique" in error for error in errors))
+
+    def test_symlink_data_file_is_rejected(self) -> None:
+        product_dir = self.make_product()
+        outside = self.root / "outside.csv"
+        outside.write_text("sensitive,example\\n", encoding="utf-8")
+        link = product_dir / "linked.csv"
+        link.symlink_to(outside)
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["data_files"] = ["linked.csv"]
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("symlink data files are not allowed" in error for error in errors))
+
     def test_directory_and_publication_dates_must_match(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"
