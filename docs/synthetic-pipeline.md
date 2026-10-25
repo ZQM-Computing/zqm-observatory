@@ -156,7 +156,6 @@ python scripts/build_release_evidence.py \
 
 The synthetic fixture intentionally records `publication_authorized: false`, so a structurally valid evidence manifest reports `blocked` even when example review fields are populated. The example review file is deliberately pending and must never be treated as actual human approval. Do not replace its values merely to get a green check. Exit code 2 means evidence was built but the candidate remains blocked; exit code 1 means invalid or inconsistent evidence. This manifest is not a signature, approval authority, source license, or tamper-proof ledger.
 
-
 The builder copies each input into the output directory under a role-specific filename, so identically named source files cannot overwrite each other. The bundle includes the exact release policy and all artifacts referenced by the manifest. Verify it independently after copying or moving the directory:
 
 ```sh
