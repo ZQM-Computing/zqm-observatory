@@ -117,7 +117,7 @@ class ProductValidationTests(unittest.TestCase):
         product["data_files"] = ["linked.csv"]
         path.write_text(json.dumps(product), encoding="utf-8")
         errors = validate_product(product_dir)
-        self.assertTrue(any("symlink data files are not allowed" in error for error in errors))
+        self.assertTrue(any("symlinks are not allowed inside product bundles" in error for error in errors))
 
     def test_malformed_url_port_fails(self) -> None:
         product_dir = self.make_product()
