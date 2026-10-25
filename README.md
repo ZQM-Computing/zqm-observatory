@@ -68,6 +68,7 @@ the cycle, not the other way around.
 - [Data sources](docs/data-sources.md): the public source categories products draw on.
 - [Source rights review](docs/source-rights-review.md): the item-level permission and publication gate.
 - [Machine-readable source rights register](docs/source-rights-register.md): source-by-source decisions and the fail-closed validator.
+- [Metadata-only source preflight](docs/metadata-only-source-preflight.md): bounded, non-feature ArcGIS metadata snapshots with no bulk collection.
 - [Item-level Volusia source audit](docs/item-level-source-audit.md): metadata findings and unresolved semantics for each candidate.
 - [Roadmap](docs/roadmap.md): the stages from here to the first data product.
 - [Contributing](CONTRIBUTING.md): how to propose a data product.
