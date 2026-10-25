@@ -63,6 +63,10 @@ class MetadataPreflightTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "feature records"):
             summarize_metadata({"features": [{"attributes": {"id": 1}}]})
 
+    def test_metadata_summary_rejects_missing_layer_identity(self):
+        with self.assertRaisesRegex(ValueError, "layer id or name"):
+            summarize_metadata({})
+
     def test_capture_requests_metadata_and_records_hash_without_feature_data(self):
         raw = json.dumps({
             "id": 32, "name": "Trails", "geometryType": "esriGeometryPolyline",
@@ -84,9 +88,11 @@ class MetadataPreflightTests(unittest.TestCase):
 
     def test_non_layer_gtfs_index_is_skipped_without_request(self):
         source = next(s for s in REGISTER["sources"] if s["id"] == "votran-official-gtfs")
-        result = capture_one(source, opener=FakeOpener(FakeResponse(b"{}")))
+        opener = FakeOpener(FakeResponse(b"{}"))
+        result = capture_one(source, opener=opener)
         self.assertEqual(result["status"], "SKIPPED")
-        self.assertIn("never fetched", result["reason"] if "reason" in result else "never fetched")
+        self.assertIn("skipped without network request", result["reason"])
+        self.assertIsNone(opener.request)
 
     def test_report_makes_no_collection_or_rights_claim(self):
         report = build_report(REGISTER, opener=FakeOpener(FakeResponse(b"{}")))
