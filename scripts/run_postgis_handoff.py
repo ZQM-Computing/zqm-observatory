@@ -14,6 +14,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+# Support direct execution as `python scripts/run_postgis_handoff.py`.
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 import psycopg
 from psycopg import sql
 
