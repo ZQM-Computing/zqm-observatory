@@ -103,15 +103,15 @@ def extent(features: dict[str, dict[str, Any]]) -> list[float] | None:
     longitudes = sorted((point[0] + 360.0) % 360.0 for point in points)
     latitudes = [point[1] for point in points]
     if len(longitudes) == 1:
-        west = east = ((longitudes[0] + 180.0) % 360.0) - 180.0
+        west = east = longitudes[0] if longitudes[0] <= 180.0 else longitudes[0] - 360.0
     else:
         gaps = [
             ((longitudes[(index + 1) % len(longitudes)] - longitude) % 360.0, index)
             for index, longitude in enumerate(longitudes)
         ]
         _, gap_index = max(gaps)
-        west = ((longitudes[(gap_index + 1) % len(longitudes)] + 180.0) % 360.0) - 180.0
-        east = ((longitudes[gap_index] + 180.0) % 360.0) - 180.0
+        west = longitudes[(gap_index + 1) % len(longitudes)] if longitudes[(gap_index + 1) % len(longitudes)] <= 180.0 else longitudes[(gap_index + 1) % len(longitudes)] - 360.0
+        east = longitudes[gap_index] if longitudes[gap_index] <= 180.0 else longitudes[gap_index] - 360.0
     return [west, min(latitudes), east, max(latitudes)]
 
 
