@@ -1,0 +1,95 @@
+name: Pinned PostGIS RLS cookbook handoff
+
+on:
+  pull_request:
+    paths:
+      - "tests/fixtures/postgis-rls-seed.sql"
+      - "tests/fixtures/postgis-rls-verify-cleanup.sql"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/postgis-rls-cookbook-handoff.yml"
+  push:
+    branches: [main]
+    paths:
+      - "tests/fixtures/postgis-rls-seed.sql"
+      - "tests/fixtures/postgis-rls-verify-cleanup.sql"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/postgis-rls-cookbook-handoff.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgis-rls-cookbook-handoff-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-postgis-rls-pattern:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgis:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_DB: observatory
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d observatory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out pinned PostGIS cookbook
+        uses: actions/checkout@v4
+        with:
+          repository: ZQM-Computing/postgis-cookbook
+          ref: eda8d7ab9379d1c43f55666260ad693868137537
+          path: support/postgis-cookbook
+          persist-credentials: false
+      - name: Seed disposable synthetic database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+            -f tests/fixtures/postgis-rls-seed.sql
+      - name: Run pinned cookbook row-level security pattern
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -o pipefail
+          mkdir -p build/postgis-rls-cookbook-handoff
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+            -f support/postgis-cookbook/patterns/07_row_level_security.sql \
+            | tee build/postgis-rls-cookbook-handoff/pattern-output.txt
+      - name: Verify cleanup and fixture integrity
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+            -f tests/fixtures/postgis-rls-verify-cleanup.sql \
+            | tee build/postgis-rls-cookbook-handoff/cleanup-verification.txt
+          cat > build/postgis-rls-cookbook-handoff/manifest.json <<'JSON'
+          {
+            "schema_version": 1,
+            "handoff": "observatory-to-pinned-postgis-cookbook-rls-pattern",
+            "producer_repository": "ZQM-Computing/postgis-cookbook",
+            "producer_commit": "eda8d7ab9379d1c43f55666260ad693868137537",
+            "fixture_classification": "synthetic only",
+            "database": "disposable PostGIS 16 CI service",
+            "expected_sites": 9,
+            "expected_parcels": 24,
+            "cleanup_assertions": true,
+            "publication_authorized": false
+          }
+          JSON
+      - name: Upload reproducible RLS handoff evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: observatory-postgis-rls-cookbook-handoff
+          path: build/postgis-rls-cookbook-handoff/
+          if-no-files-found: error
+          retention-days: 14

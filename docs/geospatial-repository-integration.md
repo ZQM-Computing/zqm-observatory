@@ -92,7 +92,7 @@ The adapter is `scripts/run_postgis_handoff.py`; its contract tests are in `test
 
 The runtime asserts row count, unique stable identifiers, SRID 4326, and a spatial extent matching the normalized source coordinates. It refuses to reuse a pre-existing schema, quotes the schema identifier, parameterizes data values, and removes only the schema created by this run. CI uploads a machine-readable report and manifest for 14 days. The manifest marks publication as unauthorized.
 
-This handoff uses the PostGIS database engine directly; it does not claim to execute or depend on a PostGIS cookbook script. The [PostGIS cookbook](https://github.com/ZQM-Computing/postgis-cookbook) remains the reference for independently tested spatial SQL patterns, including row-level security. The handoff establishes only a synthetic data-loading contract—not production grants, RLS policy design, backup readiness, public API availability, source rights, or release approval.
+This handoff uses the PostGIS database engine directly; it does not claim to execute or depend on a PostGIS cookbook script. A separate fourth workflow below executes the pinned PostGIS cookbook row-level-security pattern against its own synthetic service-area fixture. These distinct tests establish only the contracts they exercise—not production grants, backup readiness, public API availability, source rights, or release approval.
 
 Run the local contract tests with:
 
@@ -111,8 +111,16 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/observatory \
   --producer-commit "$(git rev-parse HEAD)"
 ```
 
+## Fourth executable handoff: pinned PostGIS row-level security pattern
+
+The workflow `.github/workflows/postgis-rls-cookbook-handoff.yml` checks out the PostGIS cookbook at the immutable merge commit `eda8d7ab9379d1c43f55666260ad693868137537` (PR #30), seeds a disposable PostGIS 16 database with synthetic North, Coastal, and outside-area features, then executes the cookbook's actual `patterns/07_row_level_security.sql` with `psql -v ON_ERROR_STOP=1`.
+
+The fixture deliberately contains 3 North sites, 4 Coastal sites, 2 outside sites, and 24 synthetic parcels. The upstream pattern asserts role-specific site visibility and spatial boundaries, checks read-all counts, and removes its temporary roles/policies in a transaction. A follow-up SQL verifier asserts temporary roles and policies are gone, RLS flags are restored, and the fixture still contains all 9 sites and 24 parcels. CI uploads the SQL output, cleanup-verification output, and manifest for 14 days.
+
+This tests the pinned cookbook SQL in a disposable integration context; it is stronger than a link or README reference. It still does not certify a production role model: the CI runner uses a database superuser to create the temporary roles, and the fixture is synthetic. Production adoption requires a separately reviewed least-privilege bootstrap, non-superuser execution, threat model, and role-specific negative tests. The manifest records `publication_authorized: false`.
+
 ## Implementation order
 
 1. Keep the pinned QGIS QA, GeoParquet/DuckDB, and PostGIS handoffs green on the exact latest commit, including artifact checks and input immutability where applicable.
-2. Extend the PostGIS handoff with explicit read-only role/grant and row-level-security tests using synthetic service areas before considering any production database integration.
+2. Keep the pinned PostGIS cookbook RLS handoff green and add a least-privilege execution variant before considering any production database integration.
 3. Add a catalog-specific handoff only after deciding whether the first need is a database schema (pgSTAC) or an HTTP API; keep GeoServer/Martin delivery and imagery/STAC as separate optional tracks.
