@@ -6,7 +6,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_release_evidence import read_json as read_build_json\nfrom scripts.strict_json import loads_strict\nfrom scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
+from scripts.build_release_evidence import read_json as read_build_json
+from scripts.strict_json import loads_strict
+from scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
 from scripts.build_release_evidence import validate_non_authorizing_provenance
 
 
