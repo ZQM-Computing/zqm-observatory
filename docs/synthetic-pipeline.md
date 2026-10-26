@@ -34,7 +34,7 @@ No build timestamp is inserted, so hashes remain useful for comparisons.
 ## Compare two product runs
 
 Use `scripts/compare_product_runs.py` to compare two normalized GeoJSON files
-by stable `properties.id`, not row order. The report includes input hashes,
+by stable `properties.id`, not row order. Duplicate JSON object keys in input GeoJSON or review-rules files are rejected instead of being silently overwritten by the JSON parser. The report includes input hashes,
 added and removed IDs, changed feature IDs with before/after attribute values,
 geometry-change flags, counts, and before/after extents. Longitude extents use
 the shortest circular interval; when a bounding box crosses the antimeridian,
