@@ -7,6 +7,8 @@ import unittest
 from pathlib import Path
 
 from scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
+from scripts.build_release_evidence import validate_non_authorizing_provenance
+
 
 
 class ReleaseEvidencePathTests(unittest.TestCase):
@@ -46,6 +48,14 @@ class ReleaseEvidencePathTests(unittest.TestCase):
                 any("artifact qa_report must not be a symlink" in error for error in errors),
                 errors,
             )
+
+    def test_release_evidence_rejects_authorizing_provenance(self) -> None:
+        errors = validate_non_authorizing_provenance({"publication_authorized": True})
+        self.assertTrue(any("publication_authorized=false" in error for error in errors), errors)
+
+    def test_release_evidence_requires_explicit_false_authorization(self) -> None:
+        self.assertEqual(validate_non_authorizing_provenance({"publication_authorized": False}), [])
+        self.assertTrue(validate_non_authorizing_provenance({}))
 
 
 if __name__ == "__main__":
