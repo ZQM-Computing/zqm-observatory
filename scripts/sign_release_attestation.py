@@ -109,7 +109,7 @@ def verify(attestation_path: Path, public_key_path: Path, manifest_path: Path) -
     if not isinstance(key, Ed25519PublicKey):
         return ["trusted public key must be PEM Ed25519"]
     payload = envelope.get("payload")
-    if envelope.get("envelope_type") != "zqm_observatory_ed25519_attestation" or envelope.get("schema_version") != 1 or not isinstance(payload, dict):
+    if envelope.get("envelope_type") != "zqm_observatory_ed25519_attestation" or type(envelope.get("schema_version")) is not int or envelope.get("schema_version") != 1 or not isinstance(payload, dict):
         return ["attestation envelope schema is invalid"]
     actual_key_id = public_key_id(key)
     if payload.get("key_id") != actual_key_id:
