@@ -49,6 +49,16 @@ def read_json(path: Path, label: str) -> tuple[dict[str, Any] | None, list[str]]
     return value, []
 
 
+def validate_non_authorizing_provenance(value: dict[str, Any]) -> list[str]:
+    """Release evidence bundles must never carry an authorization-granting provenance record."""
+    if value.get("publication_authorized") is not False:
+        return [
+            "release evidence requires provenance publication_authorized=false; "
+            "publication authorization must be handled by a separate, explicit release process"
+        ]
+    return []
+
+
 def validate_reviews(value: dict[str, Any]) -> list[str]:
     errors: list[str] = []
     if value.get("schema_version") != 1 or value.get("review_type") != "zqm_observatory_release_reviews":
@@ -106,8 +116,7 @@ def build_manifest(
         errors.append("QA report status must be passed")
     if provenance.get("schema_version") != 1:
         errors.append("provenance schema_version must be 1")
-    if provenance.get("publication_authorized") is not False and provenance.get("publication_authorized") is not True:
-        errors.append("provenance publication_authorized must be an explicit boolean")
+    errors.extend(validate_non_authorizing_provenance(provenance))
     if gate.get("decision") not in ("blocked", "eligible_for_human_release_review"):
         errors.append("release gate decision is missing or unrecognized")
     if change.get("report_type") != "geojson_feature_change_impact" or not isinstance(change.get("inputs"), dict):
@@ -187,9 +196,10 @@ def build_manifest(
         return None, errors
 
     review_decisions = {name: reviews["gates"][name]["decision"] for name in REVIEW_GATES}
-    all_reviews_approved = all(value == "approved" for value in review_decisions.values())
     provenance_authorized = provenance.get("publication_authorized") is True
-    decision = "release_authorized" if all_reviews_approved and provenance_authorized else "blocked"
+    # Evidence packaging is never an authorization mechanism. Even a complete
+    # review record remains blocked until a separate release process acts.
+    decision = "blocked"
     artifacts: dict[str, dict[str, str]] = {}
     paths = {
         "normalized_dataset": product_dir / "normalized.geojson",
