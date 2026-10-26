@@ -76,6 +76,12 @@ class ReleaseAttestationTests(unittest.TestCase):
                 self.assertTrue(any("duplicate JSON object key" in error for error in verify(attestation, public_path, manifest)))
                 sign(manifest, private_path, attestation, "test-issuer", None)
                 self.assertEqual(verify(attestation, public_path, manifest), [])
+                envelope = json.loads(attestation.read_text(encoding="utf-8"))
+                envelope["schema_version"] = True
+                attestation.write_text(json.dumps(envelope), encoding="utf-8")
+                self.assertTrue(any("attestation envelope schema is invalid" in error for error in verify(attestation, public_path, manifest)))
+                sign(manifest, private_path, attestation, "test-issuer", None)
+                self.assertEqual(verify(attestation, public_path, manifest), [])
                 self.assertTrue(verify(attestation, wrong_path, manifest))
                 manifest.write_text(manifest.read_text(encoding="utf-8") + " ", encoding="utf-8")
                 self.assertTrue(any("manifest SHA-256" in error for error in verify(attestation, public_path, manifest)))
