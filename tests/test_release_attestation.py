@@ -69,9 +69,21 @@ class ReleaseAttestationTests(unittest.TestCase):
             with patch("scripts.sign_release_attestation.verify_manifest", return_value=[]):
                 sign(manifest, private_path, attestation, "test-issuer", None)
                 self.assertEqual(verify(attestation, public_path, manifest), [])
+                attestation.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
+                self.assertTrue(any("duplicate JSON object key" in error for error in verify(attestation, public_path, manifest)))
+                sign(manifest, private_path, attestation, "test-issuer", None)
+                self.assertEqual(verify(attestation, public_path, manifest), [])
                 self.assertTrue(verify(attestation, wrong_path, manifest))
                 manifest.write_text(manifest.read_text(encoding="utf-8") + " ", encoding="utf-8")
                 self.assertTrue(any("manifest SHA-256" in error for error in verify(attestation, public_path, manifest)))
+
+    def test_history_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history.jsonl"
+            history.write_text('{"sequence":1,"sequence":2,"previous_entry_sha256":"' + "0" * 64 + '","attestation_file":"attestation.json","attestation_sha256":"' + "a" * 64 + '","entry_sha256":"' + "b" * 64 + '"}\\n', encoding="utf-8")
+            _, errors = load_entries(history)
+            self.assertTrue(any("duplicate JSON object key" in error for error in errors))
 
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
