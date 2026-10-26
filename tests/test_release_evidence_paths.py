@@ -118,5 +118,58 @@ class ReleaseEvidencePathTests(unittest.TestCase):
         self.assertTrue(validate_non_authorizing_provenance({}))
 
 
+    def test_release_reviews_reject_missing_required_gate(self) -> None:
+        reviews = {
+            "schema_version": 1,
+            "review_type": "zqm_observatory_release_reviews",
+            "gates": {},
+        }
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("review gate source_rights is missing" in error for error in errors), errors)
+
+    def test_release_reviews_reject_invalid_decision(self) -> None:
+        reviews = {
+            "schema_version": 1,
+            "review_type": "zqm_observatory_release_reviews",
+            "gates": {
+                gate: {"decision": "approved", "reviewer": "Reviewer", "reviewed_on": "2026-10-26", "evidence": "evidence.md"}
+                for gate in ("source_rights", "privacy", "factual_quality", "product_owner")
+            },
+        }
+        reviews["gates"]["privacy"]["decision"] = "approve"
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("review gate privacy is not approved" in error for error in errors), errors)
+
+    def test_release_reviews_reject_malformed_date_and_empty_evidence(self) -> None:
+        reviews = {
+            "schema_version": 1,
+            "review_type": "zqm_observatory_release_reviews",
+            "gates": {
+                gate: {"decision": "approved", "reviewer": "Reviewer", "reviewed_on": "2026-10-26", "evidence": "evidence.md"}
+                for gate in ("source_rights", "privacy", "factual_quality", "product_owner")
+            },
+        }
+        reviews["gates"]["factual_quality"]["reviewed_on"] = "2026-02-30"
+        reviews["gates"]["product_owner"]["evidence"] = "  "
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("factual_quality requires reviewed_on" in error for error in errors), errors)
+        self.assertTrue(any("product_owner requires an evidence reference" in error for error in errors), errors)
+
+    def test_release_reviews_reject_empty_reviewer_and_wrong_gate_shape(self) -> None:
+        reviews = {
+            "schema_version": 1,
+            "review_type": "zqm_observatory_release_reviews",
+            "gates": {
+                gate: {"decision": "approved", "reviewer": "Reviewer", "reviewed_on": "2026-10-26", "evidence": "evidence.md"}
+                for gate in ("source_rights", "privacy", "factual_quality", "product_owner")
+            },
+        }
+        reviews["gates"]["source_rights"]["reviewer"] = " "
+        reviews["gates"]["privacy"] = None
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("source_rights requires a non-empty reviewer" in error for error in errors), errors)
+        self.assertTrue(any("review gate privacy is missing or not an object" in error for error in errors), errors)
+
+
 if __name__ == "__main__":
     unittest.main()
