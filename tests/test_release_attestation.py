@@ -159,6 +159,26 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertIn("unsafe attestation_file", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_history_rejects_unknown_fields_and_boolean_sequence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history.jsonl"
+            body = {
+                "sequence": 1,
+                "previous_entry_sha256": GENESIS,
+                "attestation_file": "attestation.json",
+                "attestation_sha256": "a" * 64,
+            }
+            entry = {**body, "entry_sha256": sha256_bytes(canonical_json(body)), "unreviewed_override": True}
+            history.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+            _, errors = load_entries(history)
+            self.assertTrue(any("fields do not match" in error for error in errors))
+            entry = {**body, "sequence": True}
+            entry["entry_sha256"] = sha256_bytes(canonical_json({key: value for key, value in entry.items() if key != "entry_sha256"}))
+            history.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+            _, errors = load_entries(history)
+            self.assertTrue(any("sequence must be integer 1" in error for error in errors))
+
     def test_history_append_rejects_attestation_outside_history_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
