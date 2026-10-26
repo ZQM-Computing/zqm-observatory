@@ -131,7 +131,7 @@ def main() -> int:
     args = parser.parse_args()
     errors = verify_manifest(args.manifest)
     if errors:
-        print("\\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
+        print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
     print("Evidence bundle verified: artifact hashes and release-policy decision are consistent; no publication authorization is granted.")
     return 0
