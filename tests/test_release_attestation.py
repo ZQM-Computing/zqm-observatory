@@ -86,6 +86,24 @@ class ReleaseAttestationTests(unittest.TestCase):
                 manifest.write_text(manifest.read_text(encoding="utf-8") + " ", encoding="utf-8")
                 self.assertTrue(any("manifest SHA-256" in error for error in verify(attestation, public_path, manifest)))
 
+    def test_sign_refuses_bundle_rejected_by_independent_verifier(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self._fixture(root)
+            private = Ed25519PrivateKey.generate()
+            private_path = root / "private.pem"
+            private_path.write_bytes(private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            ))
+            output = root / "must-not-exist.json"
+            # No verifier patch: the signing entry point must enforce the real
+            # evidence policy, not merely sign a syntactically plausible bundle.
+            with self.assertRaisesRegex(ValueError, "evidence bundle verification failed"):
+                sign(manifest, private_path, output, "test-issuer", None)
+            self.assertFalse(output.exists())
+
     def test_history_rejects_duplicate_json_keys(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
