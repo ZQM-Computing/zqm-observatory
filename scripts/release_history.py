@@ -136,7 +136,7 @@ def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
     # if the process is interrupted while writing. Temp and destination share a
     # directory so os.replace remains on one filesystem.
     existing = history_path.read_bytes() if history_path.exists() else b""
-    line = json.dumps(entry, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\\n"
+    line = json.dumps(entry, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
     temp_name: str | None = None
     try:
         with tempfile.NamedTemporaryFile("wb", dir=history_path.parent, prefix=f".{history_path.name}.", suffix=".tmp", delete=False) as stream:
