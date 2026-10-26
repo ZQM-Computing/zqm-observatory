@@ -68,6 +68,23 @@ class SourceRightsValidatorTests(unittest.TestCase):
         source["permitted_uses"]["public_display"] = True
         self.assertTrue(any("INTERNAL_ONLY cannot permit" in error for error in validate_document(document)))
 
+    def test_layer_id_must_match_service_url(self):
+        document = copy.deepcopy(REGISTER)
+        source = next(s for s in document["sources"] if s["id"] == "volusia-trails-layer-32")
+        source["layer_id"] = 31
+        self.assertTrue(any("layer_id must match the numeric layer" in error for error in validate_document(document)))
+
+    def test_layer_id_is_required_in_every_source_record(self):
+        document = copy.deepcopy(REGISTER)
+        del document["sources"][0]["layer_id"]
+        self.assertTrue(any("missing fields: layer_id" in error for error in validate_document(document)))
+
+    def test_non_layer_source_requires_null_layer_id(self):
+        document = copy.deepcopy(REGISTER)
+        source = next(s for s in document["sources"] if s["id"] == "votran-official-gtfs")
+        source["layer_id"] = 33
+        self.assertTrue(any("layer_id must be null for a non-layer service URL" in error for error in validate_document(document)))
+
     def test_invalid_url_is_rejected(self):
         document = copy.deepcopy(REGISTER)
         document["sources"][0]["service_url"] = "http://example.gov/data"
