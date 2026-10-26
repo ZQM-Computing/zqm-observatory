@@ -77,7 +77,7 @@ def main() -> int:
             count, unique_count, min_srid, max_srid = cur.fetchone()
             if count != len(rows) or unique_count != len(rows) or min_srid != 4326 or max_srid != 4326:
                 raise AssertionError(f"PostGIS handoff mismatch: count={count}, unique={unique_count}, SRID={min_srid}..{max_srid}")
-            cur.execute("SELECT ST_XMin(ST_Extent(geom)), ST_YMin(ST_Extent(geom)), ST_XMax(ST_Extent(geom)), ST_YMax(ST_Extent(geom)) FROM observatory_handoff_test.places")
+            cur.execute("SELECT min(ST_X(geom)), min(ST_Y(geom)), max(ST_X(geom)), max(ST_Y(geom)) FROM observatory_handoff_test.places")
             extent = cur.fetchone()
             if any(value is None for value in extent):
                 raise AssertionError("PostGIS extent unexpectedly empty.")
