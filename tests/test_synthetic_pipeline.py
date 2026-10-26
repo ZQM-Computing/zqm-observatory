@@ -447,7 +447,8 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertGreater(bbox[0], bbox[2], "crossing bbox should encode west > east")
             self.assertAlmostEqual(bbox[0], 179.5)
             self.assertAlmostEqual(bbox[2], -179.5)
-            self.assertEqual(bbox[1:], [10.0, -179.5, 12.0]) if False else None
+            self.assertEqual(bbox[1], 10.0)
+            self.assertEqual(bbox[3], 12.0)
 
             report, errors = compare(
                 output / "normalized.geojson",
@@ -456,7 +457,7 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertEqual(errors, [])
             self.assertIsNotNone(report)
             assert report is not None
-            self.assertGreater(report["summary"]["extent_before"][0], report["summary"]["extent_before"][2])
+            self.assertGreater(report["extent"]["before"][0], report["extent"]["before"][2])
 
 if __name__ == "__main__":
     unittest.main()
