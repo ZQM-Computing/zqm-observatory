@@ -132,6 +132,19 @@ def verify_manifest(manifest_path: Path) -> list[str]:
             errors.append("manifest review_decisions do not match the bundled human review record")
     if not isinstance(provenance, dict) or type(provenance.get("schema_version")) is not int or provenance.get("schema_version") != 1:
         errors.append("provenance schema_version must be integer 1")
+    else:
+        for provenance_key, artifact_role in (("output", "normalized_dataset"), ("qa_report", "qa_report")):
+            record = provenance.get(provenance_key)
+            if not isinstance(record, dict) or record.get("sha256") != artifacts[artifact_role].get("sha256"):
+                errors.append(f"provenance {provenance_key} hash does not match bundled {artifact_role} artifact")
+    manifest_gate = manifest.get("release_gate")
+    if not isinstance(manifest_gate, dict):
+        errors.append("manifest release_gate must be an object")
+    else:
+        if manifest_gate.get("decision") != recomputed.get("decision"):
+            errors.append("manifest release-gate decision does not match recomputed policy decision")
+        if manifest_gate.get("violations") != recomputed.get("violations"):
+            errors.append("manifest release-gate violations do not match recomputed policy result")
     if manifest.get("publication_authorized_by_manifest") is not False:
         errors.append("manifest must never claim publication authorization")
     if manifest.get("decision") != "blocked":
