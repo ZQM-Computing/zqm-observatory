@@ -9,6 +9,11 @@ import sys
 from pathlib import Path
 from typing import Any
 
+try:
+    from scripts.strict_json import loads_strict
+except ModuleNotFoundError:
+    from strict_json import loads_strict
+
 GENESIS = "0" * 64
 
 
@@ -33,8 +38,8 @@ def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     seen: set[str] = set()
     for number, line in enumerate(lines, 1):
         try:
-            entry = json.loads(line)
-        except json.JSONDecodeError as exc:
+            entry = loads_strict(line)
+        except (json.JSONDecodeError, ValueError) as exc:
             errors.append(f"line {number}: invalid JSON: {exc}")
             continue
         if not isinstance(entry, dict):
