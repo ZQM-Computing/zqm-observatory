@@ -244,8 +244,27 @@ def validate_data_dir(data_dir: Path) -> list[str]:
         return [f"{data_dir}: data directory must not be a symlink"]
     if not data_dir.is_dir():
         return [f"{data_dir}: data directory does not exist or is not a directory"]
-    products = sorted(p for p in data_dir.iterdir() if p.is_dir() and not p.name.startswith("."))
     errors: list[str] = []
+    products: list[Path] = []
+    for entry in sorted(data_dir.iterdir()):
+        # Hidden repository/editor sentinels are not product payloads. Every
+        # visible top-level entry, however, must be a real product directory;
+        # otherwise files can sit beside reviewed bundles without being gated.
+        if entry.name.startswith("."):
+            continue
+        # The repository-level data/README.md explains the bundle layout and
+        # is documentation, not an unreviewed data asset.
+        if entry.name == "README.md" and entry.is_file() and not entry.is_symlink():
+            continue
+        if entry.is_symlink():
+            errors.append(f"{entry}: top-level data entries must not be symlinks")
+        elif entry.is_dir():
+            products.append(entry)
+        else:
+            errors.append(
+                f"{entry}: unexpected top-level file; data/ must contain dated product directories only"
+            )
+
     for product_dir in products:
         errors.extend(validate_product(product_dir))
     if not products:
