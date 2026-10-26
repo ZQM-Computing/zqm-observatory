@@ -1,6 +1,6 @@
 # Geospatial repository integration map
 
-This document identifies useful handoffs between Observatory and the ZQM Computing geospatial repositories. It is an integration plan, **not evidence that these repositories currently call one another or that an end-to-end pipeline has passed**. The Observatory remains Stage 0; no live product or production service is implied.
+This document separates verified synthetic CI handoffs from candidate integrations. The pinned QGIS dataset-QA and GeoParquet/DuckDB Spatial adapters have executable cross-repository runtime jobs; these verify only their declared contracts. The Observatory remains Stage 0: no live product or production service is implied.
 
 The latest repository-level evidence crawl, including inspected commit snapshots, confirmed interfaces, status discrepancies, and the proposed order of integration, is recorded in [supporting-repository-crawl.md](supporting-repository-crawl.md). That crawl is a desk review; it does not claim cross-repository runtime compatibility.
 
@@ -18,18 +18,18 @@ The latest repository-level evidence crawl, including inspected commit snapshots
 | Stage | Repository | Intended handoff | Status and evidence needed |
 | --- | --- | --- | --- |
 | Source governance and product gate | [zqm-observatory](https://github.com/ZQM-Computing/zqm-observatory) | Rights register and source evidence define whether a source can be collected, transformed, or published. | Governance files and validator exist; individual source permissions remain unresolved. |
-| Desktop inspection and dataset QA | [qgis-resources](https://github.com/ZQM-Computing/qgis-resources) | Inspect a rights-cleared local fixture; generate a read-only dataset QA report before transformation. | Separate repository. No Observatory invocation or shared fixture contract verified yet. |
+| Desktop inspection and dataset QA | [qgis-resources](https://github.com/ZQM-Computing/qgis-resources) | Inspect a local synthetic fixture; generate a read-only dataset QA report before transformation. | Implemented adapter and pinned runtime workflow; this change refreshes the pin to the merged QGIS Resources PR #22 commit `40bf07d435281e46099eb028b1b1a9258cba87ef`. Exact-head CI must pass for the refreshed pin before merge. |
 | Format conversion and metadata | [gdal-cookbook](https://github.com/ZQM-Computing/gdal-cookbook) | Convert/reproject bounded synthetic or approved data; preserve input and record GDAL version and command. | Separate examples; no Observatory pipeline wired. |
 | Python spatial validation | [geopandas-cookbook](https://github.com/ZQM-Computing/geopandas-cookbook) | Check geometry validity, CRS, duplicate keys, nulls, and spatial joins on the normalized fixture. | Candidate QA stage; exact reusable CLI/interface must be established before automation. |
-| Columnar analysis | [geoparquet-cookbook](https://github.com/ZQM-Computing/geoparquet-cookbook) and [duckdb-spatial-cookbook](https://github.com/ZQM-Computing/duckdb-spatial-cookbook) | Exchange GeoParquet with declared CRS/geometry metadata; use DuckDB for reproducible analytical QA and aggregate-only outputs. | Implemented in `scripts/run_geoparquet_duckdb_handoff.py`; pinned commits and CI evidence are defined in `.github/workflows/geoparquet-duckdb-handoff.yml`. Treat as verified only after the exact-head runtime job succeeds. |
-| Spatial system of record and routing | [postgis-cookbook](https://github.com/ZQM-Computing/postgis-cookbook) and [pgrouting-cookbook](https://github.com/ZQM-Computing/pgrouting-cookbook) | Load approved normalized layers into a disposable PostGIS schema; test topology and routing only when source semantics support it. | No Observatory database or route workflow established. Do not infer safe/public routes from line geometry alone. |
-| Raster and imagery | [cog-cookbook](https://github.com/ZQM-Computing/cog-cookbook) and [stac-cookbook](https://github.com/ZQM-Computing/stac-cookbook) | Validate a Cloud Optimized GeoTIFF and catalog approved imagery with STAC metadata and provenance. | Future imagery path; no Observatory STAC catalog exists yet. |
-| API and map delivery | [geospatial-api-reference](https://github.com/ZQM-Computing/geospatial-api-reference) and [maplibre-cookbook](https://github.com/ZQM-Computing/maplibre-cookbook) | Serve a synthetic/approved aggregate through OGC API – Features, then render it in a browser map. | Reference examples only; no live Observatory API or frontend connection verified. |
-| Spatial aggregation | [h3-cookbook](https://github.com/ZQM-Computing/h3-cookbook) | Produce coarse, documented aggregates where aggregation is analytically appropriate and privacy-reviewed. | Candidate analytical technique, not a privacy guarantee by itself. |
+| Columnar analysis | [geoparquet-cookbook](https://github.com/ZQM-Computing/geoparquet-cookbook) and [duckdb-spatial-cookbook](https://github.com/ZQM-Computing/duckdb-spatial-cookbook) | Exchange GeoParquet with declared CRS/geometry metadata; use DuckDB for reproducible analytical QA and aggregate-only outputs. | Verified synthetic handoff in `scripts/run_geoparquet_duckdb_handoff.py`; pinned commits and runtime workflow are in `.github/workflows/geoparquet-duckdb-handoff.yml`. Exact-head run 40249451463 succeeded for PR #45 head `1308e5a457aab66486fa9e674946d3bc8c2e437e`. |
+| Spatial system of record and routing | [postgis-cookbook](https://github.com/ZQM-Computing/postgis-cookbook) and [pgrouting-cookbook](https://github.com/ZQM-Computing/pgrouting-cookbook) | Load approved normalized layers into a disposable PostGIS schema; test topology and routing only when source semantics support it. | PostGIS cookbook now includes executable examples and a row-level-security pattern, but no Observatory database handoff exists. Next candidate: a disposable database schema with synthetic data, explicit grants, cleanup, and result assertions. Do not infer safe/public routes from line geometry alone. |
+| Raster and imagery | [rasterio-cookbook](https://github.com/ZQM-Computing/rasterio-cookbook), [cog-cookbook](https://github.com/ZQM-Computing/cog-cookbook), and [stac-cookbook](https://github.com/ZQM-Computing/stac-cookbook) | Read/write and window-process local rasters, validate COG layout, then catalog approved imagery with STAC metadata and provenance. | Rasterio has executable read/write and windowed-read examples with CI; COG validation and STAC local-asset examples are also implemented. These are repository-local tests, not an Observatory raster or imagery catalog pipeline. |
+| API and map delivery | [geospatial-api-reference](https://github.com/ZQM-Computing/geospatial-api-reference), [geoserver-cookbook](https://github.com/ZQM-Computing/geoserver-cookbook), [martin-cookbook](https://github.com/ZQM-Computing/martin-cookbook), and [maplibre-cookbook](https://github.com/ZQM-Computing/maplibre-cookbook) | Publish approved layers through OGC services or serve PostGIS vector tiles, then render a browser map. | GeoServer has a disposable PostGIS→REST publication→WFS integration test; Martin has a PostGIS table-source smoke test covering catalog, TileJSON, and a tile. These are cookbook-level evidence only; no live Observatory API, server, or frontend connection is established. |
+| STAC database layer | [pgstac-cookbook](https://github.com/ZQM-Computing/pgstac-cookbook) | Validate a disposable pgSTAC schema/migration before considering catalog persistence. | Reproducible pgSTAC 0.10.0 migration and schema assertions pass against disposable PostGIS in CI. pgSTAC is a database schema/function layer, not an HTTP STAC API; no Observatory catalog exists. |\n| Spatial aggregation | [h3-cookbook](https://github.com/ZQM-Computing/h3-cookbook) | Produce coarse, documented aggregates where aggregation is analytically appropriate and privacy-reviewed. | Candidate analytical technique, not a privacy guarantee by itself. |
 
 The umbrella [Geospatial Cookbooks index](https://github.com/ZQM-Computing/geospatial-cookbooks) is the catalog for these independently maintained examples. A link between repositories is documentation discoverability, not a runtime dependency.
 
-## Minimal integration contract to implement next
+## Minimal integration contract for future handoffs
 
 Use one tiny deterministic synthetic dataset (for example, a few points and lines in a declared CRS) and require each stage to produce:
 
@@ -44,7 +44,7 @@ A cross-repository smoke test should only be called **verified** after CI checks
 
 The initial offline adapter is implemented in `scripts/run_qgis_dataset_qa_handoff.py`; its contract tests are in `tests/test_qgis_dataset_qa_handoff.py`, and CI is defined in `.github/workflows/external-geospatial-qa.yml`.
 
-The workflow checks out `ZQM-Computing/qgis-resources` at the explicit commit `004d037da5301264d3f2ac462d835f2d5c75f8cb`, installs the GDAL command-line and Python bindings, and runs the upstream `scripts/dataset_qa.py` twice against the Observatory's synthetic GeoJSON fixture. It requires the declared `id` and `name` fields, candidate identifier uniqueness, EPSG:4326, zero warnings, zero errors, matching feature count, byte-identical QA reports, and an unchanged input hash. The workflow uploads both reports and a handoff manifest as a short-retention CI artifact.
+The workflow checks out `ZQM-Computing/qgis-resources` at the explicit merged commit `40bf07d435281e46099eb028b1b1a9258cba87ef` (the merge commit for QGIS Resources PR #22), installs the GDAL command-line and Python bindings, and runs the upstream `scripts/dataset_qa.py` twice against the Observatory's synthetic GeoJSON fixture. It requires the declared `id` and `name` fields, candidate identifier uniqueness, EPSG:4326, zero warnings, zero errors, matching feature count, byte-identical QA reports, and an unchanged input hash. The workflow uploads both reports and a handoff manifest as a short-retention CI artifact.
 
 The manifest captures the pinned producer commit, Python/GDAL versions, invocation contract, fixture hashes, and QA-report hash. It explicitly records that source-rights, privacy, and human release review are not approved. A successful technical QA handoff is not release authorization.
 
@@ -56,10 +56,10 @@ python -m unittest discover -s tests -p 'test_qgis_dataset_qa_handoff.py' -v
   --qa-script support/qgis-resources/scripts/dataset_qa.py \
   --fixture tests/fixtures/synthetic-places.geojson \
   --output-dir build/qgis-dataset-qa-handoff \
-  --producer-commit 004d037da5301264d3f2ac462d835f2d5c75f8cb
+  --producer-commit 40bf07d435281e46099eb028b1b1a9258cba87ef
 ```
 
-CI must be green before this handoff is described as verified. The pinned producer commit is deliberately explicit: updating it requires reviewing the upstream interface and re-running the contract tests.
+The prior pin passed exact-head CI, and the refreshed QGIS Resources pin is required to pass the same upstream runtime contract in this change. The producer commit remains explicit: any future pin update must review the upstream interface and rerun contract tests plus the pinned runtime job.
 
 ## Second executable handoff: GeoParquet and DuckDB Spatial
 
@@ -87,7 +87,7 @@ python scripts/run_geoparquet_duckdb_handoff.py \\
 
 ## Implementation order
 
-1. Keep the QGIS QA handoff green and pin its upstream implementation explicitly.
-2. Verify the GeoParquet/DuckDB handoff on the exact PR head, including metadata assertions, expected aggregates, input immutability, and artifact upload.
-3. Only then evaluate a disposable PostGIS handoff; do not connect Observatory to a production database or API in this stage.
-4. Keep imagery/STAC and routing as separate optional tracks because their data semantics, rights requirements, and runtime assumptions differ.
+1. Refresh the QGIS QA pin to the merged QGIS Resources implementation and require the pinned runtime job to pass on the exact Observatory PR head.
+2. Keep the verified GeoParquet/DuckDB handoff green, including metadata assertions, expected aggregates, input immutability, and artifact upload.
+3. Build the next cross-repository handoff against a disposable PostGIS database with synthetic records, explicit roles/grants, safe cleanup, and SQL result assertions; do not connect Observatory to a production database or API.
+4. Add a catalog-specific handoff only after deciding whether the first need is a database schema (pgSTAC) or an HTTP API; keep GeoServer/Martin delivery and imagery/STAC as separate optional tracks.
