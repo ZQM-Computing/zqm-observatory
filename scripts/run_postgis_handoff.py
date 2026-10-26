@@ -97,16 +97,42 @@ def main() -> int:
                 # transaction. PostgreSQL privilege predicates are authoritative.
                 cur.execute("""
                     SELECT
-                      has_schema_privilege('PUBLIC', 'observatory_handoff_test', 'USAGE'),
-                      has_table_privilege('PUBLIC', 'observatory_handoff_test.places', 'SELECT'),
-                      has_table_privilege('PUBLIC', 'observatory_handoff_test.places', 'INSERT'),
-                      has_table_privilege('PUBLIC', 'observatory_handoff_test.places', 'UPDATE'),
-                      has_table_privilege('PUBLIC', 'observatory_handoff_test.places', 'DELETE')
+                      EXISTS (
+                        SELECT 1 FROM pg_namespace n
+                        CROSS JOIN LATERAL aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) a
+                        WHERE n.nspname = 'observatory_handoff_test'
+                          AND a.grantee = 0 AND a.privilege_type = 'USAGE'
+                      ),
+                      EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+                        WHERE n.nspname = 'observatory_handoff_test' AND c.relname = 'places'
+                          AND a.grantee = 0 AND a.privilege_type = 'SELECT'
+                      ),
+                      EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+                        WHERE n.nspname = 'observatory_handoff_test' AND c.relname = 'places'
+                          AND a.grantee = 0 AND a.privilege_type = 'INSERT'
+                      ),
+                      EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+                        WHERE n.nspname = 'observatory_handoff_test' AND c.relname = 'places'
+                          AND a.grantee = 0 AND a.privilege_type = 'UPDATE'
+                      ),
+                      EXISTS (
+                        SELECT 1 FROM pg_class c
+                        JOIN pg_namespace n ON n.oid = c.relnamespace
+                        CROSS JOIN LATERAL aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) a
+                        WHERE n.nspname = 'observatory_handoff_test' AND c.relname = 'places'
+                          AND a.grantee = 0 AND a.privilege_type = 'DELETE'
+                      )
                 """)
                 public_usage, public_select, public_insert, public_update, public_delete = cur.fetchone()
-                # PUBLIC must not be granted access implicitly; the test table
-                # has no PUBLIC grants unless the server is globally configured
-                # to add them, in which case fail rather than overstate isolation.
                 role_checks = {
                     "public_schema_usage": bool(public_usage),
                     "public_select": bool(public_select),
