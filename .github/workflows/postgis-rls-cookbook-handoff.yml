@@ -59,6 +59,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
+          set -o pipefail
           mkdir -p build/postgis-rls-cookbook-handoff
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
             -f support/postgis-cookbook/patterns/07_row_level_security.sql \
