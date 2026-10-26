@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.build_release_evidence import read_json as read_build_json, validate_reviews
 from scripts.strict_json import loads_strict
@@ -200,7 +201,7 @@ class ReleaseEvidencePathTests(unittest.TestCase):
         del reviews["gates"]["source_rights"]
         with tempfile.TemporaryDirectory() as temporary:
             manifest = self._write_hash_consistent_bundle(Path(temporary) / "bundle", reviews)
-            with unittest.mock.patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
+            with patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
                 errors = verify_manifest(manifest)
         self.assertTrue(any("human review validation" in error and "source_rights" in error for error in errors), errors)
 
