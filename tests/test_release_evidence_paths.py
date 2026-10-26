@@ -241,6 +241,17 @@ class ReleaseEvidencePathTests(unittest.TestCase):
                 errors = verify_manifest(manifest)
         self.assertTrue(any("provenance output hash does not match" in error for error in errors), errors)
 
+    def test_release_reviews_reject_unexpected_gate(self) -> None:
+        reviews = self._approved_synthetic_reviews()
+        reviews["gates"]["security_override"] = {
+            "decision": "approved",
+            "reviewer": "Synthetic Test Reviewer",
+            "reviewed_on": "2026-10-26",
+            "evidence": "synthetic-evidence.md",
+        }
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("unexpected gate(s): security_override" in error for error in errors), errors)
+
     def test_release_reviews_reject_missing_required_gate(self) -> None:
         reviews = {
             "schema_version": 1,
