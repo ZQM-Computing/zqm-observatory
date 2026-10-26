@@ -10,7 +10,7 @@ BEGIN
 END
 $$;
 
-CREATE ROLE patterns NOLOGIN;
+CREATE ROLE patterns LOGIN CREATEROLE PASSWORD 'patterns';
 CREATE SCHEMA demo;
 CREATE TABLE demo.service_areas (
     name text PRIMARY KEY,
@@ -62,3 +62,9 @@ SELECT i,
         )
     END
 FROM generate_series(1, 24) AS i;
+
+-- The pattern runner owns the demo objects, but is not a superuser.
+ALTER SCHEMA demo OWNER TO patterns;
+ALTER TABLE demo.service_areas OWNER TO patterns;
+ALTER TABLE demo.service_sites OWNER TO patterns;
+ALTER TABLE demo.parcels OWNER TO patterns;
