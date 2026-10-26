@@ -43,7 +43,7 @@ def verify_manifest(manifest_path: Path) -> list[str]:
     manifest, errors = read_json(manifest_path, "manifest")
     if errors:
         return errors
-    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1 or manifest.get("manifest_type") != "zqm_observatory_release_evidence":
+    if not isinstance(manifest, dict) or type(manifest.get("schema_version")) is not int or manifest.get("schema_version") != 1 or manifest.get("manifest_type") != "zqm_observatory_release_evidence":
         return ["manifest schema or manifest_type is invalid"]
     artifacts = manifest.get("artifacts")
     if not isinstance(artifacts, dict):
