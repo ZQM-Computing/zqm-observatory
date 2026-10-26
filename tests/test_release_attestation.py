@@ -235,6 +235,28 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertEqual(history.read_bytes(), original)
             self.assertEqual(list(root.glob(".history.jsonl.*.tmp")), [])
 
+
+    def test_history_read_failure_returns_controlled_error_and_preserves_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            attestation = root / "attestation.json"
+            attestation.write_text('{"signed":true}', encoding="utf-8")
+            history = root / "history.jsonl"
+            history.write_text("", encoding="utf-8")
+            original = history.read_bytes()
+            original_read_bytes = Path.read_bytes
+
+            def fail_history_read(path):
+                if path == history:
+                    raise OSError("simulated history read failure")
+                return original_read_bytes(path)
+
+            with patch.object(Path, "read_bytes", new=fail_history_read):
+                errors = append_entry(history, attestation)
+            self.assertTrue(any("history update failed: simulated history read failure" in error for error in errors))
+            self.assertEqual(history.read_bytes(), original)
+            self.assertEqual(list(root.glob(".history.jsonl.*.tmp")), [])
+
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
