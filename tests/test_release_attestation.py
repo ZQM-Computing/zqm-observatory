@@ -221,6 +221,20 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertIn("attestation must not be a symlink", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_history_atomic_replace_failure_preserves_existing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            attestation = root / "attestation.json"
+            attestation.write_text('{"signed":true}', encoding="utf-8")
+            history = root / "history.jsonl"
+            history.write_text('existing-history\\n', encoding="utf-8")
+            original = history.read_bytes()
+            with patch("scripts.release_history.os.replace", side_effect=OSError("simulated replace failure")):
+                errors = append_entry(history, attestation)
+            self.assertTrue(any("history update failed" in error for error in errors))
+            self.assertEqual(history.read_bytes(), original)
+            self.assertEqual(list(root.glob(".history.jsonl.*.tmp")), [])
+
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
