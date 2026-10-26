@@ -99,7 +99,7 @@ class ReleaseAttestationTests(unittest.TestCase):
                 "attestation_sha256": "a" * 64,
             }
             entry = {**body, "entry_sha256": sha256_bytes(canonical_json(body))}
-            history.write_text(json.dumps(entry) + "\\n", encoding="utf-8")
+            history.write_text(json.dumps(entry) + "\n", encoding="utf-8")
             stderr = io.StringIO()
             with patch("sys.argv", ["release_history.py", "verify", "--history", str(history)]), contextlib.redirect_stderr(stderr):
                 result = history_main()
