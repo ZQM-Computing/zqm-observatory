@@ -22,7 +22,7 @@ The latest repository-level evidence crawl, including inspected commit snapshots
 | Format conversion and metadata | [gdal-cookbook](https://github.com/ZQM-Computing/gdal-cookbook) | Convert/reproject bounded synthetic or approved data; preserve input and record GDAL version and command. | Separate examples; no Observatory pipeline wired. |
 | Python spatial validation | [geopandas-cookbook](https://github.com/ZQM-Computing/geopandas-cookbook) | Check geometry validity, CRS, duplicate keys, nulls, and spatial joins on the normalized fixture. | Candidate QA stage; exact reusable CLI/interface must be established before automation. |
 | Columnar analysis | [geoparquet-cookbook](https://github.com/ZQM-Computing/geoparquet-cookbook) and [duckdb-spatial-cookbook](https://github.com/ZQM-Computing/duckdb-spatial-cookbook) | Exchange GeoParquet with declared CRS/geometry metadata; use DuckDB for reproducible analytical QA and aggregate-only outputs. | Verified synthetic handoff in `scripts/run_geoparquet_duckdb_handoff.py`; pinned commits and runtime workflow are in `.github/workflows/geoparquet-duckdb-handoff.yml`. Exact-head run 40249451463 succeeded for PR #45 head `1308e5a457aab66486fa9e674946d3bc8c2e437e`. |
-| Spatial system of record and routing | [postgis-cookbook](https://github.com/ZQM-Computing/postgis-cookbook) and [pgrouting-cookbook](https://github.com/ZQM-Computing/pgrouting-cookbook) | Load approved normalized layers into a disposable PostGIS schema; test topology and routing only when source semantics support it. | PostGIS cookbook now includes executable examples and a row-level-security pattern, but no Observatory database handoff exists. Next candidate: a disposable database schema with synthetic data, explicit grants, cleanup, and result assertions. Do not infer safe/public routes from line geometry alone. |
+| Spatial system of record and routing | [postgis-cookbook](https://github.com/ZQM-Computing/postgis-cookbook) and [pgrouting-cookbook](https://github.com/ZQM-Computing/pgrouting-cookbook) | Load approved normalized layers into a disposable PostGIS schema; test topology and routing only when source semantics support it. | Synthetic GeoJSON-to-PostGIS handoff is implemented in `scripts/run_postgis_handoff.py` with a disposable PostGIS 16 CI service, schema-isolation guard, SRID/extent/count assertions, cleanup, and a short-retention report artifact. This is an Observatory-owned adapter, not a runtime dependency on PostGIS cookbook SQL. No production database or routing workflow exists. Do not infer safe/public routes from line geometry alone. |
 | Raster and imagery | [rasterio-cookbook](https://github.com/ZQM-Computing/rasterio-cookbook), [cog-cookbook](https://github.com/ZQM-Computing/cog-cookbook), and [stac-cookbook](https://github.com/ZQM-Computing/stac-cookbook) | Read/write and window-process local rasters, validate COG layout, then catalog approved imagery with STAC metadata and provenance. | Rasterio has executable read/write and windowed-read examples with CI; COG validation and STAC local-asset examples are also implemented. These are repository-local tests, not an Observatory raster or imagery catalog pipeline. |
 | API and map delivery | [geospatial-api-reference](https://github.com/ZQM-Computing/geospatial-api-reference), [geoserver-cookbook](https://github.com/ZQM-Computing/geoserver-cookbook), [martin-cookbook](https://github.com/ZQM-Computing/martin-cookbook), and [maplibre-cookbook](https://github.com/ZQM-Computing/maplibre-cookbook) | Publish approved layers through OGC services or serve PostGIS vector tiles, then render a browser map. | GeoServer has a disposable PostGIS→REST publication→WFS integration test; Martin has a PostGIS table-source smoke test covering catalog, TileJSON, and a tile. These are cookbook-level evidence only; no live Observatory API, server, or frontend connection is established. |
 | STAC database layer | [pgstac-cookbook](https://github.com/ZQM-Computing/pgstac-cookbook) | Validate a disposable pgSTAC schema/migration before considering catalog persistence. | Reproducible pgSTAC 0.10.0 migration and schema assertions pass against disposable PostGIS in CI. pgSTAC is a database schema/function layer, not an HTTP STAC API; no Observatory catalog exists. |
@@ -86,9 +86,34 @@ python scripts/run_geoparquet_duckdb_handoff.py \\
   --duckdb-commit a38e038d2d02eb83b4b94690af7f9d4c885902ea
 ```
 
+
+## Third executable handoff: synthetic GeoJSON to PostGIS
+
+The adapter is `scripts/run_postgis_handoff.py`; its contract tests are in `tests/test_postgis_handoff.py` and the disposable integration workflow is `.github/workflows/postgis-handoff.yml`. It first runs the deterministic synthetic-product normalizer, then inserts the three-point fixture into a dedicated `observatory_handoff_ci` schema in a disposable PostGIS 16 service.
+
+The runtime asserts row count, unique stable identifiers, SRID 4326, and a spatial extent matching the normalized source coordinates. It refuses to reuse a pre-existing schema, quotes the schema identifier, parameterizes data values, and removes only the schema created by this run. CI uploads a machine-readable report and manifest for 14 days. The manifest marks publication as unauthorized.
+
+This handoff uses the PostGIS database engine directly; it does not claim to execute or depend on a PostGIS cookbook script. The [PostGIS cookbook](https://github.com/ZQM-Computing/postgis-cookbook) remains the reference for independently tested spatial SQL patterns, including row-level security. The handoff establishes only a synthetic data-loading contract—not production grants, RLS policy design, backup readiness, public API availability, source rights, or release approval.
+
+Run the local contract tests with:
+
+```sh
+python -m unittest discover -s tests -p 'test_postgis_handoff.py' -v
+```
+
+Run the runtime adapter only against a disposable PostGIS database:
+
+```sh
+python -m pip install "psycopg[binary]==3.2.9"
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/observatory \
+  python scripts/run_postgis_handoff.py \
+  --fixture tests/fixtures/synthetic-places.geojson \
+  --output-dir build/postgis-handoff \
+  --producer-commit "$(git rev-parse HEAD)"
+```
+
 ## Implementation order
 
-1. Refresh the QGIS QA pin to the merged QGIS Resources implementation and require the pinned runtime job to pass on the exact Observatory PR head.
-2. Keep the verified GeoParquet/DuckDB handoff green, including metadata assertions, expected aggregates, input immutability, and artifact upload.
-3. Build the next cross-repository handoff against a disposable PostGIS database with synthetic records, explicit roles/grants, safe cleanup, and SQL result assertions; do not connect Observatory to a production database or API.
-4. Add a catalog-specific handoff only after deciding whether the first need is a database schema (pgSTAC) or an HTTP API; keep GeoServer/Martin delivery and imagery/STAC as separate optional tracks.
+1. Keep the pinned QGIS QA, GeoParquet/DuckDB, and PostGIS handoffs green on the exact latest commit, including artifact checks and input immutability where applicable.
+2. Extend the PostGIS handoff with explicit read-only role/grant and row-level-security tests using synthetic service areas before considering any production database integration.
+3. Add a catalog-specific handoff only after deciding whether the first need is a database schema (pgSTAC) or an HTTP API; keep GeoServer/Martin delivery and imagery/STAC as separate optional tracks.
