@@ -62,8 +62,22 @@ def verify_manifest(manifest_path: Path) -> list[str]:
             errors.append(f"artifact {role} has malformed SHA-256")
             continue
         path = manifest_path.parent / bundle_file
+        # Evidence artifacts must be actual files in the bundle, not links to
+        # mutable or external files that happen to hash correctly at review time.
+        if path.is_symlink():
+            errors.append(f"artifact {role} must not be a symlink")
+            continue
         try:
-            actual = sha256_file(path)
+            resolved_path = path.resolve(strict=True)
+            bundle_root = manifest_path.parent.resolve(strict=True)
+        except OSError as exc:
+            errors.append(f"artifact {role} missing/unreadable: {exc}")
+            continue
+        if not resolved_path.is_relative_to(bundle_root) or not resolved_path.is_file():
+            errors.append(f"artifact {role} must resolve to a regular file inside the evidence bundle")
+            continue
+        try:
+            actual = sha256_file(resolved_path)
         except OSError as exc:
             errors.append(f"artifact {role} missing/unreadable: {exc}")
             continue
