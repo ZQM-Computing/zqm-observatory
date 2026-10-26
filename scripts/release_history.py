@@ -17,6 +17,17 @@ except ModuleNotFoundError:
 GENESIS = "0" * 64
 
 
+def _is_safe_attestation_filename(value: object) -> bool:
+    """Accept a single filename, never a path or traversal component."""
+    return (
+        isinstance(value, str)
+        and value not in {"", ".", ".."}
+        and "/" not in value
+        and "\\" not in value
+        and Path(value).name == value
+    )
+
+
 def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
 
@@ -54,7 +65,7 @@ def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
         if record["entry_sha256"] != expected:
             errors.append(f"line {number}: entry hash mismatch")
         attestation_file = record["attestation_file"]
-        if not isinstance(attestation_file, str) or not attestation_file or Path(attestation_file).name != attestation_file:
+        if not _is_safe_attestation_filename(attestation_file):
             errors.append(f"line {number}: unsafe attestation_file")
         att_hash = record["attestation_sha256"]
         if not isinstance(att_hash, str) or len(att_hash) != 64 or any(ch not in "0123456789abcdef" for ch in att_hash):
@@ -110,7 +121,12 @@ def main() -> int:
         entries, errors = load_entries(args.history)
         root = args.attestation_dir or args.history.parent
         for entry in entries:
-            path = root / entry["attestation_file"]
+            filename = entry.get("attestation_file")
+            # load_entries has already recorded this as an error; never let malformed
+            # data trigger a TypeError or escape the configured attestation directory.
+            if not _is_safe_attestation_filename(filename):
+                continue
+            path = root / filename
             try:
                 actual = sha256_bytes(path.read_bytes())
             except OSError as exc:
