@@ -25,7 +25,7 @@ USES = {"automated_capture", "transformation", "spatial_join", "public_display",
 PUBLIC_USES = {"public_display", "raw_redistribution", "derived_redistribution"}
 REQUIRED_SOURCE = {
     "id", "title", "publisher", "service_url", "intended_product", "decision",
-    "terms_url", "terms_evidence", "reviewed_at", "reviewer", "permitted_uses",
+    "layer_id", "terms_url", "terms_evidence", "reviewed_at", "reviewer", "permitted_uses",
     "required_attribution", "unresolved_questions", "metadata_review_only",
 }
 
@@ -89,6 +89,16 @@ def validate_document(document: Any) -> list[str]:
                 errors.append(f"{label}.{field} must be a non-empty string")
         if not https_url(source["service_url"]):
             errors.append(f"{label}.service_url must be a valid HTTPS URL")
+        layer_id = source["layer_id"]
+        if layer_id is not None and (not isinstance(layer_id, int) or isinstance(layer_id, bool) or layer_id < 0):
+            errors.append(f"{label}.layer_id must be null or a non-negative integer")
+        parsed_service_url = urlparse(source["service_url"]) if isinstance(source["service_url"], str) else None
+        if parsed_service_url is not None:
+            match = re.search(r"/FeatureServer/(\d+)/?$", parsed_service_url.path)
+            if match and layer_id != int(match.group(1)):
+                errors.append(f"{label}.layer_id must match the numeric layer in service_url")
+            if not match and layer_id is not None:
+                errors.append(f"{label}.layer_id must be null for a non-layer service URL")
         if source["terms_url"] is not None and not https_url(source["terms_url"]):
             errors.append(f"{label}.terms_url must be null or a valid HTTPS URL")
         if not iso_date(source["reviewed_at"]):
