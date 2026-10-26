@@ -1,12 +1,16 @@
 import hashlib
+import io
 import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from audit_source_metadata import build_report, capture_one, layer_metadata_url, summarize_metadata
+from audit_source_metadata import build_report, capture_one, layer_metadata_url, main, summarize_metadata
 
 REGISTER = json.loads((ROOT / "config" / "source-rights.json").read_text(encoding="utf-8"))
 
@@ -126,6 +130,24 @@ class MetadataPreflightTests(unittest.TestCase):
         self.assertFalse(report["safety_scope"]["bulk_download_performed"])
         self.assertFalse(report["safety_scope"]["rights_approval_granted"])
         self.assertEqual(report["counts"]["total"], len(REGISTER["sources"]))
+
+    def test_invalid_register_is_rejected_before_any_network_request(self):
+        register = json.loads(json.dumps(REGISTER))
+        register["sources"][0]["layer_id"] = 999
+        opener = FakeOpener(FakeResponse(b"{}"))
+        with self.assertRaisesRegex(ValueError, "failed validation"):
+            build_report(register, opener=opener)
+        self.assertIsNone(opener.request)
+
+    def test_cli_rejects_duplicate_register_json_keys(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "source-rights.json"
+            path.write_text('{"schema_version":1,"sources":[],"sources":[]}', encoding="utf-8")
+            stderr = io.StringIO()
+            with patch.object(sys, "argv", ["audit_source_metadata.py", "--register", str(path)]), redirect_stderr(stderr):
+                result = main()
+            self.assertEqual(result, 2)
+            self.assertIn("duplicate JSON object key: 'sources'", stderr.getvalue())
 
 
 if __name__ == "__main__":
