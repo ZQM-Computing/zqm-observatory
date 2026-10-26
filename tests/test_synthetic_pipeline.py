@@ -116,6 +116,34 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertEqual(len(errors), 2, errors)
 
 
+    def test_provenance_verifier_rejects_duplicate_json_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            provenance = output / "provenance.json"
+            text = provenance.read_text(encoding="utf-8")
+            self.assertIn('"schema_version": 1', text)
+            provenance.write_text(
+                text.replace('"schema_version": 1', '"schema_version": 1, "schema_version": 1', 1),
+                encoding="utf-8",
+            )
+            errors = verify(FIXTURE, output)
+            self.assertTrue(any("duplicate JSON object key: 'schema_version'" in error for error in errors), errors)
+
+    def test_baseline_registry_rejects_duplicate_json_keys(self) -> None:
+        from scripts.baseline_registry import load_registry
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "registry.json"
+            path.write_text(
+                '{"schema_version":1,"schema_version":1,"registry_type":"zqm_observatory_baseline_registry","runs":[]}',
+                encoding="utf-8",
+            )
+            value, errors = load_registry(path)
+            self.assertIsNone(value)
+            self.assertTrue(any("duplicate JSON object key: 'schema_version'" in error for error in errors), errors)
+
     def test_provenance_verifier_accepts_unchanged_run_and_detects_output_tampering(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
