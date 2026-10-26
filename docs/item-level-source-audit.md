@@ -6,7 +6,7 @@
 
 ## Executive findings
 
-The five candidates in issue #18 are not equivalent:
+The six candidate layers tracked in issue #18 are not equivalent:
 
 - **Park Locations (4):** useful point-index candidate; attribute semantics and source terms are undocumented in layer metadata.
 - **Park Boundaries (2):** useful polygon candidate; includes owner/maintenance fields and edit timestamps, but a mapped boundary is not a legal parcel boundary or proof of public access.
