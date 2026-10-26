@@ -86,7 +86,6 @@ python scripts/run_geoparquet_duckdb_handoff.py \\
   --duckdb-commit a38e038d2d02eb83b4b94690af7f9d4c885902ea
 ```
 
-
 ## Third executable handoff: synthetic GeoJSON to PostGIS
 
 The adapter is `scripts/run_postgis_handoff.py`; its contract tests are in `tests/test_postgis_handoff.py` and the disposable integration workflow is `.github/workflows/postgis-handoff.yml`. It first runs the deterministic synthetic-product normalizer, then inserts the three-point fixture into a dedicated `observatory_handoff_ci` schema in a disposable PostGIS 16 service.
