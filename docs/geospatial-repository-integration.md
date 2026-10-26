@@ -111,7 +111,6 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/observatory \
   --producer-commit "$(git rev-parse HEAD)"
 ```
 
-
 ## Fourth executable handoff: pinned PostGIS row-level security pattern
 
 The workflow `.github/workflows/postgis-rls-cookbook-handoff.yml` checks out the PostGIS cookbook at the immutable merge commit `eda8d7ab9379d1c43f55666260ad693868137537` (PR #30), seeds a disposable PostGIS 16 database with synthetic North, Coastal, and outside-area features, then executes the cookbook's actual `patterns/07_row_level_security.sql` with `psql -v ON_ERROR_STOP=1`.
