@@ -46,7 +46,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ZQM-Computing/qgis-resources
-          ref: 004d037da5301264d3f2ac462d835f2d5c75f8cb
+          ref: 40bf07d435281e46099eb028b1b1a9258cba87ef
           path: support/qgis-resources
           persist-credentials: false
       - name: Install GDAL runtime
@@ -59,7 +59,7 @@ jobs:
             --qa-script support/qgis-resources/scripts/dataset_qa.py \
             --fixture tests/fixtures/synthetic-places.geojson \
             --output-dir build/qgis-dataset-qa-handoff \
-            --producer-commit 004d037da5301264d3f2ac462d835f2d5c75f8cb
+            --producer-commit 40bf07d435281e46099eb028b1b1a9258cba87ef
       - name: Upload reproducible handoff evidence
         uses: actions/upload-artifact@v4
         with:
