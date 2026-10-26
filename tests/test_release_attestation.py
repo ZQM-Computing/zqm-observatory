@@ -227,7 +227,7 @@ class ReleaseAttestationTests(unittest.TestCase):
             attestation = root / "attestation.json"
             attestation.write_text('{"signed":true}', encoding="utf-8")
             history = root / "history.jsonl"
-            history.write_text('existing-history\\n', encoding="utf-8")
+            history.write_text("", encoding="utf-8")
             original = history.read_bytes()
             with patch("scripts.release_history.os.replace", side_effect=OSError("simulated replace failure")):
                 errors = append_entry(history, attestation)
