@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_release_evidence import read_json as read_build_json
+from scripts.build_release_evidence import read_json as read_build_json, validate_reviews
 from scripts.strict_json import loads_strict
 from scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
 from scripts.build_release_evidence import validate_non_authorizing_provenance
@@ -35,6 +35,21 @@ class ReleaseEvidencePathTests(unittest.TestCase):
                 any("duplicate JSON object key: 'schema_version'" in error for error in errors),
                 errors,
             )
+
+    def test_evidence_verifier_rejects_boolean_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = Path(temporary) / "manifest.json"
+            manifest.write_text(
+                '{"schema_version":true,"manifest_type":"zqm_observatory_release_evidence"}',
+                encoding="utf-8",
+            )
+            errors = verify_manifest(manifest)
+            self.assertTrue(any("manifest schema" in error for error in errors), errors)
+
+    def test_release_reviews_reject_boolean_schema_version(self) -> None:
+        reviews = {"schema_version": True, "review_type": "zqm_observatory_release_reviews", "gates": {}}
+        errors = validate_reviews(reviews)
+        self.assertTrue(any("schema_version 1" in error for error in errors), errors)
 
     def test_evidence_builder_rejects_duplicate_input_keys(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
