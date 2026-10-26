@@ -68,6 +68,9 @@ def validate_reviews(value: dict[str, Any]) -> list[str]:
     gates = value.get("gates")
     if not isinstance(gates, dict):
         return errors + ["reviews.gates must be an object"]
+    unexpected_gates = sorted(set(gates) - set(REVIEW_GATES))
+    if unexpected_gates:
+        errors.append("reviews.gates contains unexpected gate(s): " + ", ".join(str(name) for name in unexpected_gates))
     for gate in REVIEW_GATES:
         item = gates.get(gate)
         if not isinstance(item, dict):
