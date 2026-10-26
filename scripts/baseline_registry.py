@@ -19,7 +19,7 @@ def load_registry(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
     if not path.exists(): return {"schema_version": 1, "registry_type": "zqm_observatory_baseline_registry", "runs": []}, []
     try: value = loads_strict(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, ValueError) as exc: return None, [f"cannot read registry JSON: {exc}"]
-    if not isinstance(value, dict) or value.get("schema_version") != 1 or value.get("registry_type") != "zqm_observatory_baseline_registry" or not isinstance(value.get("runs"), list):
+    if not isinstance(value, dict) or type(value.get("schema_version")) is not int or value.get("schema_version") != 1 or value.get("registry_type") != "zqm_observatory_baseline_registry" or not isinstance(value.get("runs"), list):
         return None, ["registry must use schema_version 1 and contain a runs list"]
     seen = set()
     for i, run in enumerate(value["runs"]):
