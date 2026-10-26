@@ -96,7 +96,7 @@ def run(database_url: str, fixture: Path, output_dir: Path, producer_commit: str
                     )
                 cur.execute(sql.SQL("SELECT count(*), count(DISTINCT feature_id), min(ST_SRID(geom)), max(ST_SRID(geom)) FROM {}.places").format(sql.Identifier(SCHEMA)))
                 count, distinct_ids, min_srid, max_srid = cur.fetchone()
-                cur.execute(sql.SQL("SELECT ST_XMin(ST_Extent(geom)), ST_YMin(ST_Extent(geom)), ST_XMax(ST_Extent(geom)), ST_YMax(ST_Extent(geom)) FROM {}.places").format(sql.Identifier(SCHEMA)))
+                cur.execute(sql.SQL("SELECT ST_XMin(ST_Extent(geom)::box3d), ST_YMin(ST_Extent(geom)::box3d), ST_XMax(ST_Extent(geom)::box3d), ST_YMax(ST_Extent(geom)::box3d) FROM {}.places").format(sql.Identifier(SCHEMA)))
                 extent = list(cur.fetchone())
                 expected_extent = [
                     min(f["geometry"]["coordinates"][0] for f in features),
@@ -124,7 +124,7 @@ def run(database_url: str, fixture: Path, output_dir: Path, producer_commit: str
         if created_schema:
             with psycopg.connect(database_url) as cleanup:
                 with cleanup.cursor() as cur:
-                    cur.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(SCHEMA)))
+                    cur.execute(sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(sql.Identifier(SCHEMA)))
 
     report["producer_commit"] = producer_commit
     report["database_layer"] = "PostGIS; synthetic disposable schema only"
