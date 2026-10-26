@@ -63,7 +63,7 @@ def validate_non_authorizing_provenance(value: dict[str, Any]) -> list[str]:
 
 def validate_reviews(value: dict[str, Any]) -> list[str]:
     errors: list[str] = []
-    if value.get("schema_version") != 1 or value.get("review_type") != "zqm_observatory_release_reviews":
+    if type(value.get("schema_version")) is not int or value.get("schema_version") != 1 or value.get("review_type") != "zqm_observatory_release_reviews":
         errors.append("reviews must use schema_version 1 and review_type zqm_observatory_release_reviews")
     gates = value.get("gates")
     if not isinstance(gates, dict):
@@ -116,7 +116,7 @@ def build_manifest(
     errors.extend(validate_reviews(reviews))
     if qa.get("status") != "passed":
         errors.append("QA report status must be passed")
-    if provenance.get("schema_version") != 1:
+    if type(provenance.get("schema_version")) is not int or provenance.get("schema_version") != 1:
         errors.append("provenance schema_version must be 1")
     errors.extend(validate_non_authorizing_provenance(provenance))
     if gate.get("decision") not in ("blocked", "eligible_for_human_release_review"):
