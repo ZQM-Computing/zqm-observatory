@@ -29,6 +29,14 @@ class SourceRightsValidatorTests(unittest.TestCase):
             self.assertEqual(result, 2)
             self.assertIn("duplicate JSON object key: 'sources'", stderr.getvalue())
 
+    def test_boolean_schema_version_is_rejected(self):
+        document = copy.deepcopy(REGISTER)
+        document["schema_version"] = True
+        self.assertTrue(any(
+            "schema_version must be integer 1" in error
+            for error in validate_document(document)
+        ))
+
     def test_current_register_is_valid_and_fail_closed(self):
         self.assertEqual(validate_document(REGISTER), [])
         self.assertTrue(all(s["decision"] in {"BLOCKED_PENDING_REVIEW", "REJECTED"} for s in REGISTER["sources"]))
