@@ -56,13 +56,22 @@ def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
         if not isinstance(entry, dict):
             errors.append(f"line {number}: entry must be a JSON object")
             continue
-        record = {key: entry.get(key) for key in ("sequence", "previous_entry_sha256", "attestation_file", "attestation_sha256", "entry_sha256")}
+        required_fields = {"sequence", "previous_entry_sha256", "attestation_file", "attestation_sha256", "entry_sha256"}
+        if set(entry) != required_fields:
+            errors.append(f"line {number}: entry fields do not match the required schema")
+        record = {key: entry.get(key) for key in required_fields}
         expected = sha256_bytes(canonical_json({key: value for key, value in record.items() if key != "entry_sha256"}))
-        if record["sequence"] != number:
-            errors.append(f"line {number}: sequence must be {number}")
-        if record["previous_entry_sha256"] != previous:
+        if type(record["sequence"]) is not int or record["sequence"] != number:
+            errors.append(f"line {number}: sequence must be integer {number}")
+        previous_hash = record["previous_entry_sha256"]
+        if not isinstance(previous_hash, str) or len(previous_hash) != 64 or any(ch not in "0123456789abcdef" for ch in previous_hash):
+            errors.append(f"line {number}: malformed previous-entry hash")
+        if previous_hash != previous:
             errors.append(f"line {number}: previous-entry hash does not match chain")
-        if record["entry_sha256"] != expected:
+        entry_hash = record["entry_sha256"]
+        if not isinstance(entry_hash, str) or len(entry_hash) != 64 or any(ch not in "0123456789abcdef" for ch in entry_hash):
+            errors.append(f"line {number}: malformed entry hash")
+        if entry_hash != expected:
             errors.append(f"line {number}: entry hash mismatch")
         attestation_file = record["attestation_file"]
         if not _is_safe_attestation_filename(attestation_file):
