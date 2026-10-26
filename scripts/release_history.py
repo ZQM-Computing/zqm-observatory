@@ -83,8 +83,19 @@ def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
     entries, errors = load_entries(history_path)
     if errors:
         return errors
+    # History stores only a basename, so the referenced attestation must live
+    # beside the history file. Reject symlinks to prevent recording bytes from
+    # outside the controlled history directory.
+    if attestation_path.is_symlink():
+        return ["attestation must not be a symlink"]
     try:
-        attestation_bytes = attestation_path.read_bytes()
+        resolved_attestation = attestation_path.resolve(strict=True)
+        resolved_history_dir = history_path.parent.resolve(strict=True)
+        if not resolved_attestation.is_file():
+            return ["attestation must be a regular file"]
+        if resolved_attestation.parent != resolved_history_dir:
+            return ["attestation must be in the history directory"]
+        attestation_bytes = resolved_attestation.read_bytes()
     except OSError as exc:
         return [f"attestation cannot be read: {exc}"]
     attestation_hash = sha256_bytes(attestation_bytes)
@@ -127,8 +138,16 @@ def main() -> int:
             if not _is_safe_attestation_filename(filename):
                 continue
             path = root / filename
+            if path.is_symlink():
+                errors.append(f"entry {entry['sequence']}: attestation must not be a symlink")
+                continue
             try:
-                actual = sha256_bytes(path.read_bytes())
+                resolved_root = root.resolve(strict=True)
+                resolved_path = path.resolve(strict=True)
+                if not resolved_path.is_relative_to(resolved_root) or not resolved_path.is_file():
+                    errors.append(f"entry {entry['sequence']}: attestation must be a regular file inside the attestation directory")
+                    continue
+                actual = sha256_bytes(resolved_path.read_bytes())
             except OSError as exc:
                 errors.append(f"entry {entry['sequence']}: attestation missing/unreadable: {exc}")
                 continue
