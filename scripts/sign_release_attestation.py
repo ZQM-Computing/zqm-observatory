@@ -111,6 +111,37 @@ def verify(attestation_path: Path, public_key_path: Path, manifest_path: Path) -
     payload = envelope.get("payload")
     if envelope.get("envelope_type") != "zqm_observatory_ed25519_attestation" or type(envelope.get("schema_version")) is not int or envelope.get("schema_version") != 1 or not isinstance(payload, dict):
         return ["attestation envelope schema is invalid"]
+    required_payload_fields = {
+        "schema_version", "attestation_type", "algorithm", "key_id", "issuer",
+        "issued_at", "manifest_file", "manifest_sha256", "decision",
+        "publication_authorized_by_manifest", "policy_sha256",
+        "human_reviews_sha256", "artifacts", "meaning",
+    }
+    if set(payload) != required_payload_fields:
+        errors.append("attestation payload fields do not match the required schema")
+    if type(payload.get("schema_version")) is not int or payload.get("schema_version") != 1:
+        errors.append("attestation payload schema_version must be integer 1")
+    if payload.get("attestation_type") != "zqm_observatory_release_evidence_signature":
+        errors.append("attestation payload type is invalid")
+    if payload.get("algorithm") != "Ed25519":
+        errors.append("attestation payload algorithm is invalid")
+    issuer = payload.get("issuer")
+    if not isinstance(issuer, str) or not issuer.strip():
+        errors.append("attestation issuer must be a non-empty string")
+    issued_at = payload.get("issued_at")
+    if not isinstance(issued_at, str):
+        errors.append("attestation issued_at must be a timezone-aware ISO-8601 timestamp")
+    else:
+        try:
+            parsed_issued_at = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
+            if parsed_issued_at.tzinfo is None or parsed_issued_at.utcoffset() is None:
+                errors.append("attestation issued_at must include a timezone")
+        except ValueError:
+            errors.append("attestation issued_at must be a valid ISO-8601 timestamp")
+    if payload.get("manifest_file") != manifest_path.name:
+        errors.append("attestation manifest_file does not match the supplied manifest")
+    if not isinstance(payload.get("meaning"), str) or not payload.get("meaning", "").strip():
+        errors.append("attestation meaning must be a non-empty string")
     actual_key_id = public_key_id(key)
     if payload.get("key_id") != actual_key_id:
         errors.append("attestation key_id does not match trusted public-key fingerprint")
