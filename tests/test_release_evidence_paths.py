@@ -118,6 +118,128 @@ class ReleaseEvidencePathTests(unittest.TestCase):
         self.assertTrue(validate_non_authorizing_provenance({}))
 
 
+    def _write_hash_consistent_bundle(self, root: Path, reviews: dict) -> Path:
+        """Build a synthetic bundle whose hashes and summary fields are internally consistent."""
+        import scripts.verify_release_evidence as verifier
+
+        payloads = {
+            "normalized_dataset": b'{"type":"FeatureCollection","features":[]}\n',
+            "qa_report": json.dumps({"status": "passed"}, sort_keys=True).encode() + b"\n",
+            "before_dataset": b"before synthetic dataset\n",
+            "after_dataset": b"after synthetic dataset\n",
+            "baseline_registry": b'{"runs":[]}\n',
+        }
+        policy = {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}
+        empty_hash = hashlib.sha256(b"").hexdigest()
+        for role in ("change_report", "release_gate_report", "release_policy", "human_reviews", "provenance"):
+            payloads.setdefault(role, b"{}\n")
+        payloads["release_policy"] = json.dumps(policy, sort_keys=True).encode() + b"\n"
+        hashes = {name: hashlib.sha256(value).hexdigest() for name, value in payloads.items()}
+        change = {
+            "report_type": "geojson_feature_change_impact",
+            "inputs": {
+                "before": {"sha256": hashes["before_dataset"], "run_id": "baseline"},
+                "after": {"sha256": hashes["after_dataset"], "run_id": "candidate"},
+            },
+        }
+        gate = {"decision": "blocked", "policy": policy, "violations": []}
+        provenance = {
+            "schema_version": 1,
+            "publication_authorized": False,
+            "output": {"sha256": hashes["normalized_dataset"]},
+            "qa_report": {"sha256": hashes["qa_report"]},
+        }
+        payloads.update({
+            "change_report": json.dumps(change, sort_keys=True).encode() + b"\n",
+            "release_gate_report": json.dumps(gate, sort_keys=True).encode() + b"\n",
+            "human_reviews": json.dumps(reviews, sort_keys=True).encode() + b"\n",
+            "provenance": json.dumps(provenance, sort_keys=True).encode() + b"\n",
+        })
+        hashes = {name: hashlib.sha256(value).hexdigest() for name, value in payloads.items()}
+        root.mkdir(parents=True, exist_ok=True)
+        artifacts = {}
+        for role, value in payloads.items():
+            filename = f"{role}.json"
+            (root / filename).write_bytes(value)
+            artifacts[role] = {"bundle_file": filename, "sha256": hashes[role]}
+        decisions = {
+            gate_name: reviews.get("gates", {}).get(gate_name, {}).get("decision")
+            for gate_name in ("source_rights", "privacy", "factual_quality", "product_owner")
+        } if isinstance(reviews.get("gates"), dict) else {}
+        manifest = {
+            "schema_version": 1,
+            "manifest_type": "zqm_observatory_release_evidence",
+            "artifacts": artifacts,
+            "review_decisions": decisions,
+            "release_gate": {"decision": "blocked", "violations": []},
+            "publication_authorized_by_manifest": False,
+            "decision": "blocked",
+        }
+        manifest_path = root / "manifest.json"
+        manifest_path.write_text(json.dumps(manifest, sort_keys=True), encoding="utf-8")
+        return manifest_path
+
+    def _approved_synthetic_reviews(self) -> dict:
+        return {
+            "schema_version": 1,
+            "review_type": "zqm_observatory_release_reviews",
+            "gates": {
+                gate: {
+                    "decision": "approved",
+                    "reviewer": "Synthetic Test Reviewer",
+                    "reviewed_on": "2026-10-26",
+                    "evidence": "synthetic-evidence.md",
+                }
+                for gate in ("source_rights", "privacy", "factual_quality", "product_owner")
+            },
+        }
+
+    def test_verifier_rejects_hash_consistent_bundle_with_missing_review_gate(self) -> None:
+        import scripts.verify_release_evidence as verifier
+        reviews = self._approved_synthetic_reviews()
+        del reviews["gates"]["source_rights"]
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = self._write_hash_consistent_bundle(Path(temporary) / "bundle", reviews)
+            with unittest.mock.patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
+                errors = verify_manifest(manifest)
+        self.assertTrue(any("human review validation" in error and "source_rights" in error for error in errors), errors)
+
+    def test_verifier_rejects_hash_consistent_bundle_with_invalid_review_decision(self) -> None:
+        import scripts.verify_release_evidence as verifier
+        reviews = self._approved_synthetic_reviews()
+        reviews["gates"]["privacy"]["decision"] = "approve"
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = self._write_hash_consistent_bundle(Path(temporary) / "bundle", reviews)
+            with unittest.mock.patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
+                errors = verify_manifest(manifest)
+        self.assertTrue(any("human review validation" in error and "privacy" in error for error in errors), errors)
+
+    def test_verifier_rejects_hash_consistent_bundle_with_malformed_review_date(self) -> None:
+        import scripts.verify_release_evidence as verifier
+        reviews = self._approved_synthetic_reviews()
+        reviews["gates"]["factual_quality"]["reviewed_on"] = "2026-02-30"
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = self._write_hash_consistent_bundle(Path(temporary) / "bundle", reviews)
+            with unittest.mock.patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
+                errors = verify_manifest(manifest)
+        self.assertTrue(any("human review validation" in error and "reviewed_on" in error for error in errors), errors)
+
+    def test_verifier_rejects_hash_consistent_bundle_with_wrong_provenance_hash(self) -> None:
+        import scripts.verify_release_evidence as verifier
+        reviews = self._approved_synthetic_reviews()
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = self._write_hash_consistent_bundle(Path(temporary) / "bundle", reviews)
+            provenance_path = manifest.parent / "provenance.json"
+            provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+            provenance["output"]["sha256"] = "0" * 64
+            provenance_path.write_text(json.dumps(provenance, sort_keys=True) + "\n", encoding="utf-8")
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            data["artifacts"]["provenance"]["sha256"] = hashlib.sha256(provenance_path.read_bytes()).hexdigest()
+            manifest.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+            with unittest.mock.patch.object(verifier, "evaluate", return_value=({"decision": "blocked", "policy": {"block_on_severity": ["critical"], "max_removed": 0, "require_run_ids": True}, "violations": []}, [])):
+                errors = verify_manifest(manifest)
+        self.assertTrue(any("provenance output hash does not match" in error for error in errors), errors)
+
     def test_release_reviews_reject_missing_required_gate(self) -> None:
         reviews = {
             "schema_version": 1,
