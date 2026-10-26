@@ -55,13 +55,13 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
             -f tests/fixtures/postgis-rls-seed.sql
-      - name: Run pinned cookbook row-level security pattern
+      - name: Run pinned cookbook row-level security pattern as non-superuser
         env:
-          PGPASSWORD: postgres
+          PGPASSWORD: patterns
         run: |
           set -o pipefail
           mkdir -p build/postgis-rls-cookbook-handoff
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+          psql -v ON_ERROR_STOP=1 -h localhost -U patterns -d observatory \
             -f support/postgis-cookbook/patterns/07_row_level_security.sql \
             | tee build/postgis-rls-cookbook-handoff/pattern-output.txt
       - name: Verify cleanup and fixture integrity
@@ -83,6 +83,7 @@ jobs:
             "expected_sites": 9,
             "expected_parcels": 24,
             "cleanup_assertions": true,
+            "execution_role": "patterns (CREATEROLE; not superuser)",
             "publication_authorized": false
           }
           JSON
