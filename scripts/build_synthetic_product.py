@@ -108,9 +108,20 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
     normalized.sort(key=lambda item: item["properties"]["id"])
     bbox: list[float] | None = None
     if coordinates:
-        longitudes = [pair[0] for pair in coordinates]
+        longitudes = sorted((pair[0] + 360.0) % 360.0 for pair in coordinates)
         latitudes = [pair[1] for pair in coordinates]
-        bbox = [min(longitudes), min(latitudes), max(longitudes), max(latitudes)]
+        if len(longitudes) == 1:
+            west = east = longitudes[0] if longitudes[0] <= 180.0 else longitudes[0] - 360.0
+        else:
+            # GeoJSON permits west > east when the shortest bbox crosses the antimeridian.
+            gaps = [
+                ((longitudes[(index + 1) % len(longitudes)] - longitude) % 360.0, index)
+                for index, longitude in enumerate(longitudes)
+            ]
+            _, gap_index = max(gaps)
+            west = longitudes[(gap_index + 1) % len(longitudes)] if longitudes[(gap_index + 1) % len(longitudes)] <= 180.0 else longitudes[(gap_index + 1) % len(longitudes)] - 360.0
+            east = longitudes[gap_index] if longitudes[gap_index] <= 180.0 else longitudes[gap_index] - 360.0
+        bbox = [west, min(latitudes), east, max(latitudes)]
     qa = {
         "schema_version": 1,
         "pipeline_version": PIPELINE_VERSION,
