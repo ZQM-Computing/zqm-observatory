@@ -14,8 +14,10 @@ from typing import Any
 
 try:
     from scripts.evaluate_change_release import evaluate
+    from scripts.strict_json import loads_strict
 except ModuleNotFoundError:
     from evaluate_change_release import evaluate
+    from strict_json import loads_strict
 
 try:
     from scripts.baseline_registry import verify_entry
@@ -41,8 +43,8 @@ def sha256_file(path: Path) -> str:
 
 def read_json(path: Path, label: str) -> tuple[dict[str, Any] | None, list[str]]:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        value = loads_strict(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
         return None, [f"{label} cannot be read as valid JSON: {exc}"]
     if not isinstance(value, dict):
         return None, [f"{label} must be a JSON object"]

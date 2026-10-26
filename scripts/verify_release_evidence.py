@@ -11,8 +11,10 @@ from typing import Any
 
 try:
     from scripts.evaluate_change_release import evaluate
+    from scripts.strict_json import loads_strict
 except ModuleNotFoundError:
     from evaluate_change_release import evaluate
+    from strict_json import loads_strict
 
 
 REQUIRED_ARTIFACTS = {
@@ -32,8 +34,8 @@ def sha256_file(path: Path) -> str:
 
 def read_json(path: Path, label: str) -> tuple[Any | None, list[str]]:
     try:
-        return json.loads(path.read_text(encoding="utf-8")), []
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return loads_strict(path.read_text(encoding="utf-8")), []
+    except (OSError, UnicodeError, ValueError) as exc:
         return None, [f"{label} cannot be read as valid JSON: {exc}"]
 
 

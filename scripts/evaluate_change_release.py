@@ -4,6 +4,10 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 from typing import Any
+try:
+    from scripts.strict_json import loads_strict
+except ModuleNotFoundError:
+    from strict_json import loads_strict
 SEVERITIES = {"info", "low", "medium", "high", "critical"}
 def evaluate(report: dict[str, Any], rules: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     allowed = {"block_on_severity", "max_removed", "max_added", "require_run_ids"}
@@ -49,8 +53,8 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     try:
-        report = json.loads(args.report.read_text(encoding="utf-8")); rules = json.loads(args.rules_json.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        report = loads_strict(args.report.read_text(encoding="utf-8")); rules = loads_strict(args.rules_json.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
         print(f"ERROR: cannot read valid JSON: {exc}", file=sys.stderr); return 1
     result, errors = evaluate(report, rules)
     if errors or result is None:

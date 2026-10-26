@@ -6,12 +6,45 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.build_release_evidence import read_json as read_build_json
+from scripts.strict_json import loads_strict
 from scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
 from scripts.build_release_evidence import validate_non_authorizing_provenance
 
 
 
 class ReleaseEvidencePathTests(unittest.TestCase):
+    def test_strict_json_rejects_duplicate_keys_at_any_depth(self) -> None:
+        for raw in (
+            '{"decision":"blocked","decision":"approved"}',
+            '{"outer":{"decision":"blocked","decision":"approved"}}',
+        ):
+            with self.subTest(raw=raw):
+                with self.assertRaisesRegex(ValueError, "duplicate JSON object key"):
+                    loads_strict(raw)
+
+    def test_evidence_verifier_rejects_duplicate_manifest_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = Path(temporary) / "manifest.json"
+            manifest.write_text(
+                '{"schema_version":1,"schema_version":1}',
+                encoding="utf-8",
+            )
+            errors = verify_manifest(manifest)
+            self.assertTrue(
+                any("duplicate JSON object key: 'schema_version'" in error for error in errors),
+                errors,
+            )
+
+    def test_evidence_builder_rejects_duplicate_input_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "policy.json"
+            source.write_text('{"decision":"blocked","decision":"approved"}', encoding="utf-8")
+            value, errors = read_build_json(source, "release policy")
+            self.assertIsNone(value)
+            self.assertTrue(any("duplicate JSON object key: 'decision'" in error for error in errors), errors)
+
+
     def test_verifier_rejects_artifact_symlink_even_when_target_hash_matches(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary) / "bundle"
