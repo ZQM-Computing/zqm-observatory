@@ -45,6 +45,10 @@ class PostGISHandoffContractTests(unittest.TestCase):
         self.assertIn('"publication_authorized": False', source)
         self.assertIn("DROP SCHEMA IF EXISTS observatory_handoff_test CASCADE", source)
         self.assertIn("ST_SetSRID(ST_MakePoint", source)
+        self.assertIn("aclexplode", source)
+        self.assertIn("a.grantee = 0", source)
+        self.assertIn('"role_boundary_checks": role_checks', source)
+        self.assertIn('"connected_database": "observatory_test"', source)
 
 
 if __name__ == "__main__":
