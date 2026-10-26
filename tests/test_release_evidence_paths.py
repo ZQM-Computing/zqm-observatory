@@ -9,6 +9,7 @@ from pathlib import Path
 from scripts.build_release_evidence import read_json as read_build_json, validate_reviews
 from scripts.strict_json import loads_strict
 from scripts.verify_release_evidence import REQUIRED_ARTIFACTS, verify_manifest
+from scripts.baseline_registry import load_registry
 from scripts.build_release_evidence import validate_non_authorizing_provenance
 
 
@@ -45,6 +46,17 @@ class ReleaseEvidencePathTests(unittest.TestCase):
             )
             errors = verify_manifest(manifest)
             self.assertTrue(any("manifest schema" in error for error in errors), errors)
+
+    def test_baseline_registry_rejects_boolean_schema_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            registry = Path(temporary) / "registry.json"
+            registry.write_text(
+                '{"schema_version":true,"registry_type":"zqm_observatory_baseline_registry","runs":[]}',
+                encoding="utf-8",
+            )
+            value, errors = load_registry(registry)
+            self.assertIsNone(value)
+            self.assertTrue(any("schema_version 1" in error for error in errors), errors)
 
     def test_release_reviews_reject_boolean_schema_version(self) -> None:
         reviews = {"schema_version": True, "review_type": "zqm_observatory_release_reviews", "gates": {}}
