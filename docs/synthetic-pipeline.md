@@ -36,7 +36,11 @@ No build timestamp is inserted, so hashes remain useful for comparisons.
 Use `scripts/compare_product_runs.py` to compare two normalized GeoJSON files
 by stable `properties.id`, not row order. The report includes input hashes,
 added and removed IDs, changed feature IDs with before/after attribute values,
-geometry-change flags, counts, and before/after extents. For example:
+geometry-change flags, counts, and before/after extents. Longitude extents use
+the shortest circular interval; when a bounding box crosses the antimeridian,
+its west longitude is greater than its east longitude, as permitted by GeoJSON.
+Do not treat such a bbox as a conventional west-to-east interval without
+checking for this wrap condition. For example:
 
 ```sh
 python scripts/compare_product_runs.py \\
