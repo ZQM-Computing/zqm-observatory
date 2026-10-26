@@ -20,6 +20,15 @@ def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n").encode("utf-8")
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as stream:
@@ -31,8 +40,8 @@ def sha256_file(path: Path) -> str:
 def load_features(path: Path) -> tuple[dict[str, dict[str, Any]], list[str], str | None]:
     try:
         raw = path.read_bytes()
-        document = json.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        document = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    except (OSError, UnicodeError, ValueError) as exc:
         return {}, [], f"cannot read valid UTF-8 JSON: {exc}"
     if not isinstance(document, dict) or document.get("type") != "FeatureCollection":
         return {}, [], "top-level type must be FeatureCollection"
@@ -124,8 +133,8 @@ def load_review_rules(path: Path | None) -> tuple[dict[str, Any] | None, str | N
         return DEFAULT_REVIEW_RULES, None, None
     try:
         raw = path.read_bytes()
-        rules = json.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        rules = json.loads(raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    except (OSError, UnicodeError, ValueError) as exc:
         return None, None, f"cannot read valid review rules JSON: {exc}"
     if not isinstance(rules, dict) or set(rules) - {"default", "geometry", "properties"}:
         return None, None, "review rules must be an object with only default, geometry, and properties keys"
