@@ -81,7 +81,7 @@ class ReleaseAttestationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             history = root / "history.jsonl"
-            history.write_text('{"sequence":1,"sequence":2,"previous_entry_sha256":"' + "0" * 64 + '","attestation_file":"attestation.json","attestation_sha256":"' + "a" * 64 + '","entry_sha256":"' + "b" * 64 + '"}\\n', encoding="utf-8")
+            history.write_text('{"sequence":1,"sequence":2,"previous_entry_sha256":"' + "0" * 64 + '","attestation_file":"attestation.json","attestation_sha256":"' + "a" * 64 + '","entry_sha256":"' + "b" * 64 + '"}\n', encoding="utf-8")
             _, errors = load_entries(history)
             self.assertTrue(any("duplicate JSON object key" in error for error in errors))
 
