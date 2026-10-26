@@ -14,8 +14,10 @@ from typing import Any
 
 try:
     from scripts.evaluate_change_release import evaluate
+    from scripts.strict_json import loads_strict
 except ModuleNotFoundError:
     from evaluate_change_release import evaluate
+    from strict_json import loads_strict
 
 try:
     from scripts.baseline_registry import verify_entry
