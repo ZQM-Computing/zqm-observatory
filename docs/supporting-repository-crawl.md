@@ -53,7 +53,6 @@ Build one **Observatory-owned, offline integration harness** with a tiny synthet
 
 Only after that stage passes should the same fixture be written to GeoParquet and checked with DuckDB. PostGIS/API, STAC/COG, routing, and MapLibre remain separate increments with their own tests. This sequence provides evidence of real compatibility without falsely claiming the repositories are already wired together.
 
-
 ## Follow-up verification — 2026-10-26
 
 This addendum records implementation changes after the original 2026-10-25 desk crawl. The original table remains a historical snapshot; its tree/blob identifiers are not current-head identifiers.
