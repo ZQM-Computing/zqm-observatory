@@ -60,6 +60,29 @@ class ProductValidationTests(unittest.TestCase):
     def test_empty_data_directory_is_valid_before_first_product(self) -> None:
         self.assertEqual(validate_data_dir(self.data), [])
 
+
+    def test_unbundled_top_level_file_is_rejected(self) -> None:
+        (self.data / "unreviewed-export.geojson").write_text(
+            '{"type":"FeatureCollection","features":[]}', encoding="utf-8"
+        )
+        errors = validate_data_dir(self.data)
+        self.assertTrue(any(
+            "unexpected top-level file" in error and "unreviewed-export.geojson" in error
+            for error in errors
+        ))
+
+    def test_top_level_symlink_is_rejected(self) -> None:
+        outside = self.root / "outside-product"
+        outside.mkdir()
+        link = self.data / "2026-10-25-linked-product"
+        link.symlink_to(outside, target_is_directory=True)
+        errors = validate_data_dir(self.data)
+        self.assertTrue(any(
+            "top-level data entries must not be symlinks" in error
+            and "2026-10-25-linked-product" in error
+            for error in errors
+        ))
+
     def test_complete_bundle_passes_structural_gate(self) -> None:
         product_dir = self.make_product()
         self.assertEqual(validate_product(product_dir), [])
