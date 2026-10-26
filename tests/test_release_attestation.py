@@ -159,6 +159,48 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertIn("unsafe attestation_file", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_history_append_rejects_attestation_outside_history_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "history"
+            external_dir = root / "external"
+            history_dir.mkdir()
+            external_dir.mkdir()
+            attestation = external_dir / "attestation.json"
+            attestation.write_text('{"signed":true}', encoding="utf-8")
+            errors = append_entry(history_dir / "history.jsonl", attestation)
+            self.assertTrue(any("must be in the history directory" in error for error in errors))
+            self.assertFalse((history_dir / "history.jsonl").exists())
+
+    def test_history_verify_rejects_symlinked_attestation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_dir = root / "history"
+            history_dir.mkdir()
+            external = root / "outside.json"
+            external.write_text('{"signed":true}', encoding="utf-8")
+            attestation = history_dir / "attestation.json"
+            try:
+                attestation.symlink_to(external)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation is unavailable on this platform")
+            digest = sha256_bytes(external.read_bytes())
+            body = {
+                "sequence": 1,
+                "previous_entry_sha256": GENESIS,
+                "attestation_file": "attestation.json",
+                "attestation_sha256": digest,
+            }
+            entry = {**body, "entry_sha256": sha256_bytes(canonical_json(body))}
+            history = history_dir / "history.jsonl"
+            history.write_text(json.dumps(entry) + "\\n", encoding="utf-8")
+            stderr = io.StringIO()
+            with patch("sys.argv", ["release_history.py", "verify", "--history", str(history)]), contextlib.redirect_stderr(stderr):
+                result = history_main()
+            self.assertEqual(result, 1)
+            self.assertIn("attestation must not be a symlink", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
+
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
