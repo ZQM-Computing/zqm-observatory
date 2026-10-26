@@ -53,8 +53,8 @@ def validate_document(document: Any) -> list[str]:
     errors: list[str] = []
     if not isinstance(document, dict):
         return ["root must be a JSON object"]
-    if document.get("schema_version") != 1:
-        errors.append("schema_version must equal 1")
+    if type(document.get("schema_version")) is not int or document.get("schema_version") != 1:
+        errors.append("schema_version must be integer 1 (booleans are not valid versions)")
     policy = document.get("policy")
     if not isinstance(policy, dict):
         errors.append("policy must be an object")
