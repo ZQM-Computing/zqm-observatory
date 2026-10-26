@@ -8,10 +8,12 @@ WORKFLOW = ROOT / ".github" / "workflows" / "product-validation.yml"
 
 
 def paths_for(text: str, trigger: str) -> set[str]:
-    start = text.index(f"  {trigger}:")
-    following = re.search(r"^  [a-zA-Z_]+:", text[start + len(trigger) + 3 :], re.MULTILINE)
-    end = start + len(trigger) + 3 + following.start() if following else len(text)
-    block = text[start:end]
+    if trigger == "pull_request":
+        block = text.split("  pull_request:", 1)[1].split("\n  push:", 1)[0]
+    elif trigger == "push":
+        block = text.split("\n  push:", 1)[1].split("\n\npermissions:", 1)[0]
+    else:
+        raise AssertionError(f"unsupported trigger: {trigger}")
     marker = block.index("    paths:")
     return set(re.findall(r'^\s+- "([^"]+)"\s*$', block[marker:], re.MULTILINE))
 
