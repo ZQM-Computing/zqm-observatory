@@ -10,9 +10,11 @@ from pathlib import Path
 from typing import Any
 
 try:
+    from scripts.build_release_evidence import REVIEW_GATES, validate_reviews
     from scripts.evaluate_change_release import evaluate
     from scripts.strict_json import loads_strict
 except ModuleNotFoundError:
+    from build_release_evidence import REVIEW_GATES, validate_reviews
     from evaluate_change_release import evaluate
     from strict_json import loads_strict
 
@@ -118,8 +120,18 @@ def verify_manifest(manifest_path: Path) -> list[str]:
         errors.append("QA report status is not passed")
     if not isinstance(provenance, dict) or provenance.get("publication_authorized") is not False:
         errors.append("this verifier accepts only explicitly non-authorizing provenance; inspect any other authorization path separately")
-    if not isinstance(reviews, dict) or reviews.get("review_type") != "zqm_observatory_release_reviews":
-        errors.append("human review record type is invalid")
+    if not isinstance(reviews, dict):
+        errors.append("human review record must be a JSON object")
+    else:
+        errors.extend(f"human review validation: {message}" for message in validate_reviews(reviews))
+        expected_decisions = {
+            gate: reviews.get("gates", {}).get(gate, {}).get("decision")
+            for gate in REVIEW_GATES
+        } if isinstance(reviews.get("gates"), dict) else {}
+        if manifest.get("review_decisions") != expected_decisions:
+            errors.append("manifest review_decisions do not match the bundled human review record")
+    if not isinstance(provenance, dict) or type(provenance.get("schema_version")) is not int or provenance.get("schema_version") != 1:
+        errors.append("provenance schema_version must be integer 1")
     if manifest.get("publication_authorized_by_manifest") is not False:
         errors.append("manifest must never claim publication authorization")
     if manifest.get("decision") != "blocked":
