@@ -96,12 +96,23 @@ def distance_meters(left: list[float], right: list[float]) -> float:
 
 
 def extent(features: dict[str, dict[str, Any]]) -> list[float] | None:
+    """Return the smallest WGS84 bbox; west > east represents antimeridian crossing."""
     if not features:
         return None
     points = [item["geometry"]["coordinates"] for item in features.values()]
-    longitudes = [point[0] for point in points]
+    longitudes = sorted((point[0] + 360.0) % 360.0 for point in points)
     latitudes = [point[1] for point in points]
-    return [min(longitudes), min(latitudes), max(longitudes), max(latitudes)]
+    if len(longitudes) == 1:
+        west = east = ((longitudes[0] + 180.0) % 360.0) - 180.0
+    else:
+        gaps = [
+            ((longitudes[(index + 1) % len(longitudes)] - longitude) % 360.0, index)
+            for index, longitude in enumerate(longitudes)
+        ]
+        _, gap_index = max(gaps)
+        west = ((longitudes[(gap_index + 1) % len(longitudes)] + 180.0) % 360.0) - 180.0
+        east = ((longitudes[gap_index] + 180.0) % 360.0) - 180.0
+    return [west, min(latitudes), east, max(latitudes)]
 
 
 SEVERITY_RANK = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
