@@ -4,6 +4,10 @@ from __future__ import annotations
 import argparse, hashlib, json, re, sys
 from pathlib import Path
 from typing import Any
+try:
+    from scripts.strict_json import loads_strict
+except ModuleNotFoundError:
+    from strict_json import loads_strict
 RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 def sha256_file(path: Path) -> str:
@@ -13,8 +17,8 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 def load_registry(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
     if not path.exists(): return {"schema_version": 1, "registry_type": "zqm_observatory_baseline_registry", "runs": []}, []
-    try: value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc: return None, [f"cannot read registry JSON: {exc}"]
+    try: value = loads_strict(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc: return None, [f"cannot read registry JSON: {exc}"]
     if not isinstance(value, dict) or value.get("schema_version") != 1 or value.get("registry_type") != "zqm_observatory_baseline_registry" or not isinstance(value.get("runs"), list):
         return None, ["registry must use schema_version 1 and contain a runs list"]
     seen = set()
