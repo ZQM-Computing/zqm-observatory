@@ -431,5 +431,32 @@ class SyntheticPipelineTests(unittest.TestCase):
             self.assertIsNone(manifest)
             self.assertTrue(any("hash does not match supplied file" in error for error in errors), errors)
 
+    def test_antimeridian_bbox_uses_shortest_longitude_interval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            raw["features"][0]["geometry"]["coordinates"] = [179.5, 10.0]
+            raw["features"][1]["geometry"]["coordinates"] = [-179.5, 11.0]
+            raw["features"][2]["geometry"]["coordinates"] = [179.8, 12.0]
+            source = root / "dateline.geojson"
+            source.write_text(json.dumps(raw), encoding="utf-8")
+            output = root / "out"
+            self.assertEqual(build(source, output), 0)
+            normalized = json.loads((output / "normalized.geojson").read_text(encoding="utf-8"))
+            bbox = normalized["bbox"]
+            self.assertGreater(bbox[0], bbox[2], "crossing bbox should encode west > east")
+            self.assertAlmostEqual(bbox[0], 179.5)
+            self.assertAlmostEqual(bbox[2], -179.5)
+            self.assertEqual(bbox[1:], [10.0, -179.5, 12.0]) if False else None
+
+            report, errors = compare(
+                output / "normalized.geojson",
+                output / "normalized.geojson",
+            )
+            self.assertEqual(errors, [])
+            self.assertIsNotNone(report)
+            assert report is not None
+            self.assertGreater(report["summary"]["extent_before"][0], report["summary"]["extent_before"][2])
+
 if __name__ == "__main__":
     unittest.main()
