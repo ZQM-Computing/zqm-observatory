@@ -86,6 +86,34 @@ class ReleaseAttestationTests(unittest.TestCase):
                 manifest.write_text(manifest.read_text(encoding="utf-8") + " ", encoding="utf-8")
                 self.assertTrue(any("manifest SHA-256" in error for error in verify(attestation, public_path, manifest)))
 
+    def test_verify_rejects_malformed_signed_payload_metadata(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            manifest = self._fixture(root)
+            private = Ed25519PrivateKey.generate()
+            private_path = root / "private.pem"
+            public_path = root / "public.pem"
+            attestation = root / "attestation.json"
+            private_path.write_bytes(private.private_bytes(
+                serialization.Encoding.PEM,
+                serialization.PrivateFormat.PKCS8,
+                serialization.NoEncryption(),
+            ))
+            public_path.write_bytes(private.public_key().public_bytes(
+                serialization.Encoding.PEM,
+                serialization.PublicFormat.SubjectPublicKeyInfo,
+            ))
+            with patch("scripts.sign_release_attestation.verify_manifest", return_value=[]):
+                sign(manifest, private_path, attestation, "test-issuer", None)
+            envelope = json.loads(attestation.read_text(encoding="utf-8"))
+            envelope["payload"]["issued_at"] = "2026-99-99T25:61:00"
+            envelope["payload"]["manifest_file"] = "../other-manifest.json"
+            attestation.write_text(json.dumps(envelope), encoding="utf-8")
+            errors = verify(attestation, public_path, manifest)
+            self.assertTrue(any("valid ISO-8601 timestamp" in error for error in errors))
+            self.assertTrue(any("manifest_file does not match" in error for error in errors))
+            self.assertTrue(any("signature verification failed" in error for error in errors))
+
     def test_sign_refuses_bundle_rejected_by_independent_verifier(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
