@@ -21,7 +21,7 @@ The latest repository-level evidence crawl, including inspected commit snapshots
 | Desktop inspection and dataset QA | [qgis-resources](https://github.com/ZQM-Computing/qgis-resources) | Inspect a rights-cleared local fixture; generate a read-only dataset QA report before transformation. | Separate repository. No Observatory invocation or shared fixture contract verified yet. |
 | Format conversion and metadata | [gdal-cookbook](https://github.com/ZQM-Computing/gdal-cookbook) | Convert/reproject bounded synthetic or approved data; preserve input and record GDAL version and command. | Separate examples; no Observatory pipeline wired. |
 | Python spatial validation | [geopandas-cookbook](https://github.com/ZQM-Computing/geopandas-cookbook) | Check geometry validity, CRS, duplicate keys, nulls, and spatial joins on the normalized fixture. | Candidate QA stage; exact reusable CLI/interface must be established before automation. |
-| Columnar analysis | [geoparquet-cookbook](https://github.com/ZQM-Computing/geoparquet-cookbook) and [duckdb-spatial-cookbook](https://github.com/ZQM-Computing/duckdb-spatial-cookbook) | Exchange GeoParquet with declared CRS/geometry metadata; use DuckDB for reproducible analytical QA and aggregate-only outputs. | File-format/SQL handoff proposed; no shared fixture or end-to-end test yet. |
+| Columnar analysis | [geoparquet-cookbook](https://github.com/ZQM-Computing/geoparquet-cookbook) and [duckdb-spatial-cookbook](https://github.com/ZQM-Computing/duckdb-spatial-cookbook) | Exchange GeoParquet with declared CRS/geometry metadata; use DuckDB for reproducible analytical QA and aggregate-only outputs. | Implemented in `scripts/run_geoparquet_duckdb_handoff.py`; pinned commits and CI evidence are defined in `.github/workflows/geoparquet-duckdb-handoff.yml`. Treat as verified only after the exact-head runtime job succeeds. |
 | Spatial system of record and routing | [postgis-cookbook](https://github.com/ZQM-Computing/postgis-cookbook) and [pgrouting-cookbook](https://github.com/ZQM-Computing/pgrouting-cookbook) | Load approved normalized layers into a disposable PostGIS schema; test topology and routing only when source semantics support it. | No Observatory database or route workflow established. Do not infer safe/public routes from line geometry alone. |
 | Raster and imagery | [cog-cookbook](https://github.com/ZQM-Computing/cog-cookbook) and [stac-cookbook](https://github.com/ZQM-Computing/stac-cookbook) | Validate a Cloud Optimized GeoTIFF and catalog approved imagery with STAC metadata and provenance. | Future imagery path; no Observatory STAC catalog exists yet. |
 | API and map delivery | [geospatial-api-reference](https://github.com/ZQM-Computing/geospatial-api-reference) and [maplibre-cookbook](https://github.com/ZQM-Computing/maplibre-cookbook) | Serve a synthetic/approved aggregate through OGC API – Features, then render it in a browser map. | Reference examples only; no live Observatory API or frontend connection verified. |
@@ -61,10 +61,33 @@ python -m unittest discover -s tests -p 'test_qgis_dataset_qa_handoff.py' -v
 
 CI must be green before this handoff is described as verified. The pinned producer commit is deliberately explicit: updating it requires reviewing the upstream interface and re-running the contract tests.
 
+## Second executable handoff: GeoParquet and DuckDB Spatial
+
+The adapter is `scripts/run_geoparquet_duckdb_handoff.py`, with contract tests in `tests/test_geoparquet_duckdb_handoff.py` and CI in `.github/workflows/geoparquet-duckdb-handoff.yml`. It follows the GeoParquet cookbook's documented GeoPandas write/read and metadata-inspection pattern, and the DuckDB Spatial cookbook's file-based GeoParquet query and expected-value assertion pattern. These are cookbook patterns, not imported APIs; the Observatory adapter owns the contract.
+
+The workflow checks out `ZQM-Computing/geoparquet-cookbook` at `4433a6e561659e880d9e59529159ac4fe1d9c6fe` and `ZQM-Computing/duckdb-spatial-cookbook` at `a38e038d2d02eb83b4b94690af7f9d4c885902ea`. It installs pinned Python packages, provisions DuckDB Spatial, converts only `tests/fixtures/synthetic-places.geojson`, validates GeoParquet's primary geometry, WKB encoding, Point type, CRS metadata, row count and geometry validity, then compares DuckDB aggregates against fixed expected values. It checks stable IDs, nulls, geometry types, extent, category counts, and input immutability. CI uploads the Parquet output, aggregate QA report, and handoff manifest as a 14-day artifact.
+
+The runtime's data-processing phase reads local files only. CI setup does download packages and provisions DuckDB Spatial, so this workflow is not described as a fully network-isolated build. The manifest explicitly marks rights, privacy, and human release review as not approved. It does not authorize publication of real-world records.
+
+Run contract tests with:
+
+```sh
+python -m unittest discover -s tests -p 'test_geoparquet_duckdb_handoff.py' -v
+```
+
+Run the full adapter in an environment with GeoPandas, PyArrow, PyProj, and DuckDB Spatial already installed:
+
+```sh
+python scripts/run_geoparquet_duckdb_handoff.py \\
+  --fixture tests/fixtures/synthetic-places.geojson \\
+  --output-dir build/geoparquet-duckdb-handoff \\
+  --geoparquet-commit 4433a6e561659e880d9e59529159ac4fe1d9c6fe \\
+  --duckdb-commit a38e038d2d02eb83b4b94690af7f9d4c885902ea
+```
+
 ## Implementation order
 
-1. Add a small synthetic fixture and manifest contract to the best-owned QA entry point, likely `qgis-resources` or a dedicated integration harness.
-2. Confirm exact CLI contracts in GDAL and GeoPandas examples; avoid inventing interfaces from cookbook prose.
-3. Add one CI workflow that pins repository commits and runs only those proven commands.
-4. Extend the same fixture into GeoParquet/DuckDB, then PostGIS/API, only after earlier stages pass.
-5. Keep imagery/STAC and routing as separate optional tracks; they have different data semantics and runtime requirements.
+1. Keep the QGIS QA handoff green and pin its upstream implementation explicitly.
+2. Verify the GeoParquet/DuckDB handoff on the exact PR head, including metadata assertions, expected aggregates, input immutability, and artifact upload.
+3. Only then evaluate a disposable PostGIS handoff; do not connect Observatory to a production database or API in this stage.
+4. Keep imagery/STAC and routing as separate optional tracks because their data semantics, rights requirements, and runtime assumptions differ.
