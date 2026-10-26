@@ -1,47 +1,82 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "scripts" / "run_postgis_handoff.py"
-FIXTURE = ROOT / "tests" / "fixtures" / "synthetic-places.geojson"
+from scripts.run_postgis_handoff import load_fixture, validate_aggregate
 
 
-class PostGISHandoffContractTests(unittest.TestCase):
-    def test_fixture_is_small_stable_and_synthetic(self):
-        document = json.loads(FIXTURE.read_text(encoding="utf-8"))
-        self.assertEqual(document["type"], "FeatureCollection")
-        features = document["features"]
-        self.assertEqual(len(features), 3)
-        identifiers = [item["properties"]["id"] for item in features]
-        self.assertEqual(len(identifiers), len(set(identifiers)))
-        self.assertTrue(all(item["geometry"]["type"] == "Point" for item in features))
+class PostgisHandoffContractTests(unittest.TestCase):
+    def _write(self, directory: str, value: object) -> Path:
+        path = Path(directory) / "fixture.geojson"
+        path.write_text(json.dumps(value), encoding="utf-8")
+        return path
 
-    def test_handoff_fails_closed_and_marks_publication_unauthorized(self):
-        source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('SCHEMA = "observatory_handoff_ci"', source)
-        self.assertIn("refusing to reuse existing schema", source)
-        self.assertIn('"publication_authorized": False', source)
-        self.assertIn('"extent_matches_input"', source)
-        self.assertIn('"geometry_srid_is_4326"', source)
-        self.assertIn('"stable_ids_unique"', source)
-        self.assertIn('"DROP SCHEMA IF EXISTS {} CASCADE"', source)
+    def test_loads_valid_point_fixture_and_calculates_expected_aggregates(self):
+        fixture = {
+            "type": "FeatureCollection",
+            "features": [
+                {"type": "Feature", "properties": {"id": "b", "name": "Beta", "category": "park"},
+                 "geometry": {"type": "Point", "coordinates": [-81.1, 29.2]}},
+                {"type": "Feature", "properties": {"id": "a", "name": "Alpha", "category": "library"},
+                 "geometry": {"type": "Point", "coordinates": [-81.2, 29.0]}},
+            ],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self._write(tmp, fixture)
+            features, expected = load_fixture(path)
+        self.assertEqual([feature["id"] for feature in features], ["a", "b"])
+        self.assertEqual(expected["feature_count"], 2)
+        self.assertEqual(expected["unique_ids"], 2)
+        self.assertEqual(expected["extent"], [-81.2, 29.0, -81.1, 29.2])
+        self.assertEqual(expected["category_counts"], {"library": 1, "park": 1})
 
-    def test_database_values_are_parameterized_and_schema_is_identifier_quoted(self):
-        source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn("sql.Identifier(SCHEMA)", source)
-        self.assertIn("(props[\"id\"], props[\"name\"], props[\"category\"], lon, lat)", source)
-        self.assertIn("VALUES (%s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326))", source)
+    def test_rejects_duplicate_ids_bad_geometry_and_out_of_range_coordinates(self):
+        cases = [
+            {"type": "FeatureCollection", "features": [
+                {"type": "Feature", "properties": {"id": "x", "name": "A", "category": "park"},
+                 "geometry": {"type": "Point", "coordinates": [0, 0]}},
+                {"type": "Feature", "properties": {"id": "x", "name": "B", "category": "park"},
+                 "geometry": {"type": "Point", "coordinates": [1, 1]}},
+            ]},
+            {"type": "FeatureCollection", "features": [
+                {"type": "Feature", "properties": {"id": "x", "name": "A", "category": "park"},
+                 "geometry": {"type": "LineString", "coordinates": [[0, 0], [1, 1]]}},
+            ]},
+            {"type": "FeatureCollection", "features": [
+                {"type": "Feature", "properties": {"id": "x", "name": "A", "category": "park"},
+                 "geometry": {"type": "Point", "coordinates": [181, 0]}},
+            ]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            for index, value in enumerate(cases):
+                with self.subTest(case=index):
+                    path = Path(tmp) / f"fixture-{index}.geojson"
+                    path.write_text(json.dumps(value), encoding="utf-8")
+                    with self.assertRaises(ValueError):
+                        load_fixture(path)
 
-    def test_handoff_does_not_target_live_services_or_use_source_records(self):
-        source = SCRIPT.read_text(encoding="utf-8").lower()
-        self.assertIn("disposable ci database", source)
-        self.assertIn("synthetic fixture", source)
-        self.assertNotIn("requests.get(", source)
-        self.assertNotIn("http://", source)
-        self.assertNotIn("https://", source)
+    def test_aggregate_validator_rejects_wrong_counts_extent_and_categories(self):
+        expected = {
+            "feature_count": 2,
+            "unique_ids": 2,
+            "invalid_attributes": 0,
+            "invalid_geometries": 0,
+            "crs_epsg": 4326,
+            "extent": [-81.2, 29.0, -81.1, 29.2],
+            "category_counts": {"library": 1, "park": 1},
+        }
+        actual = dict(expected)
+        self.assertEqual(validate_aggregate(actual, expected), [])
+        actual["feature_count"] = 3
+        actual["extent"] = [-81.2, 29.0, -80.0, 29.2]
+        actual["category_counts"] = {"park": 2}
+        errors = validate_aggregate(actual, expected)
+        self.assertTrue(any("feature_count mismatch" in item for item in errors))
+        self.assertTrue(any("extent mismatch" in item for item in errors))
+        self.assertTrue(any("category_counts mismatch" in item for item in errors))
 
 
 if __name__ == "__main__":

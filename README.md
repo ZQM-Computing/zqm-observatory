@@ -21,7 +21,7 @@ Conservation and environmental conditions are in scope, but they are one use cas
 
 **In version control today:** repository standards, source-governance documentation, metadata-only source preflight tooling, an item-level Volusia source audit, a machine-readable source-rights register, and data-product bundle validation standards.
 
-**Not yet established:** a live public service; a released data product; a production data pipeline; a deployed Observatory PostGIS/GeoServer stack; an operational weekly digest; or a live STAC catalog. Two synthetic cross-repository handoffs are implemented in CI (pinned QGIS dataset QA and GeoParquet/DuckDB Spatial); they validate specific technical interfaces, not a production pipeline. Documentation and green CI checks are not proof of deployment, factual accuracy, or source permission.
+**Not yet established:** a live public service; a released data product; a production data pipeline; a deployed Observatory PostGIS/GeoServer stack; an operational weekly digest; or a live STAC catalog. Three synthetic cross-repository handoffs are implemented in CI: pinned QGIS dataset QA, GeoParquet/DuckDB Spatial analysis, and a disposable PostGIS handoff that executes a pinned row-level-security pattern. They validate specific technical interfaces, not a production pipeline. Documentation and green CI checks are not proof of deployment, factual accuracy, or source permission.
 
 Real-source collection and publication remain gated by the exact source's rights decision, provenance, data QA, privacy review, and product-level human approval. While source permissions are unresolved, use deterministic synthetic fixtures for pipeline development.
 
