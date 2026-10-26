@@ -257,6 +257,40 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertEqual(history.read_bytes(), original)
             self.assertEqual(list(root.glob(".history.jsonl.*.tmp")), [])
 
+    def test_history_append_rejects_symlinked_history_file_without_modifying_target(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.jsonl"
+            target.write_text("", encoding="utf-8")
+            history = root / "history.jsonl"
+            try:
+                history.symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation is unavailable on this platform")
+            attestation = root / "attestation.json"
+            attestation.write_text('{"signed":true}', encoding="utf-8")
+            errors = append_entry(history, attestation)
+            self.assertTrue(any("history file must not be a symlink" in error for error in errors))
+            self.assertEqual(target.read_bytes(), b"")
+            self.assertTrue(history.is_symlink())
+
+    def test_history_verify_rejects_symlinked_history_file_without_traceback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "target.jsonl"
+            target.write_text("", encoding="utf-8")
+            history = root / "history.jsonl"
+            try:
+                history.symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation is unavailable on this platform")
+            stderr = io.StringIO()
+            with patch("sys.argv", ["release_history.py", "verify", "--history", str(history)]), contextlib.redirect_stderr(stderr):
+                result = history_main()
+            self.assertEqual(result, 1)
+            self.assertIn("history file must not be a symlink", stderr.getvalue())
+            self.assertNotIn("Traceback", stderr.getvalue())
+
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
