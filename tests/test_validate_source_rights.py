@@ -1,17 +1,34 @@
 import copy
+import io
 import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
-from validate_source_rights import validate_document
+from validate_source_rights import main, validate_document
 
 REGISTER = json.loads((ROOT / "config" / "source-rights.json").read_text(encoding="utf-8"))
 
 
 class SourceRightsValidatorTests(unittest.TestCase):
+    def test_cli_rejects_duplicate_json_keys(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "source-rights.json"
+            path.write_text(
+                '{"sources":[],"sources":[{"decision":"APPROVED"}]}',
+                encoding="utf-8",
+            )
+            stderr = io.StringIO()
+            with patch.object(sys, "argv", ["validate_source_rights.py", str(path)]), redirect_stderr(stderr):
+                result = main()
+            self.assertEqual(result, 2)
+            self.assertIn("duplicate JSON object key: 'sources'", stderr.getvalue())
+
     def test_current_register_is_valid_and_fail_closed(self):
         self.assertEqual(validate_document(REGISTER), [])
         self.assertTrue(all(s["decision"] in {"BLOCKED_PENDING_REVIEW", "REJECTED"} for s in REGISTER["sources"]))

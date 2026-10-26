@@ -12,6 +12,11 @@ import re
 import sys
 from datetime import date
 from pathlib import Path
+
+try:
+    from scripts.strict_json import loads_strict
+except ModuleNotFoundError:
+    from strict_json import loads_strict
 from typing import Any
 from urllib.parse import urlparse
 
@@ -135,8 +140,8 @@ def main() -> int:
     parser.add_argument("path", nargs="?", type=Path, default=Path("config/source-rights.json"))
     args = parser.parse_args()
     try:
-        document = json.loads(args.path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        document = loads_strict(args.path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
         print(f"ERROR: cannot read {args.path}: {exc}", file=sys.stderr)
         return 2
     errors = validate_document(document)
