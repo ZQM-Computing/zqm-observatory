@@ -12,7 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-import psycopg
 
 
 def main() -> int:
@@ -21,7 +20,7 @@ def main() -> int:
     database = os.environ.get("PGDATABASE", "")
     if database != "observatory_test":
         raise SystemExit("Refusing database writes: PGDATABASE must be exactly 'observatory_test'.")
-    source = Path(os.environ.get("OBSERVATORY_NORMALIZED_GEOJSON", "build/synthetic-product/normalized.geojson"))
+    import psycopg  # Delayed until after safety guards so refusals work without optional dependencies.\n    source = Path(os.environ.get("OBSERVATORY_NORMALIZED_GEOJSON", "build/synthetic-product/normalized.geojson"))
     raw = source.read_bytes()
     document = json.loads(raw.decode("utf-8"))
     if not isinstance(document, dict) or document.get("type") != "FeatureCollection":
@@ -107,6 +106,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, psycopg.Error) as exc:
+    except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)
