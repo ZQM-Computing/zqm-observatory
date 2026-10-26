@@ -130,8 +130,14 @@ def validate_document(document: Any) -> list[str]:
             errors.append(f"{label}: blocked source must state unresolved questions")
         if decision == "REJECTED" and (not isinstance(source["unresolved_questions"], list) or not source["unresolved_questions"]):
             errors.append(f"{label}: rejected source must document why it was rejected")
-        if source["metadata_review_only"] is not True and decision in {"BLOCKED_PENDING_REVIEW", "REJECTED"}:
-            errors.append(f"{label}: blocked/rejected source must remain marked metadata_review_only until evidence review")
+        metadata_review_only = source["metadata_review_only"]
+        if not isinstance(metadata_review_only, bool):
+            errors.append(f"{label}.metadata_review_only must be a boolean")
+        if decision in {"BLOCKED_PENDING_REVIEW", "REJECTED"}:
+            if metadata_review_only is not True:
+                errors.append(f"{label}: blocked/rejected source must remain marked metadata_review_only until evidence review")
+            if any(value is True for value in uses.values()):
+                errors.append(f"{label}: blocked/rejected source cannot permit any use; true permissions require an approved decision")
     return errors
 
 

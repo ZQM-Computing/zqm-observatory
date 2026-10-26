@@ -78,6 +78,38 @@ class SourceRightsValidatorTests(unittest.TestCase):
         document["sources"][0]["unresolved_questions"] = []
         self.assertTrue(any("blocked source must state unresolved questions" in error for error in validate_document(document)))
 
+    def test_blocked_source_cannot_permit_any_use(self):
+        document = copy.deepcopy(REGISTER)
+        source = document["sources"][0]
+        source["decision"] = "BLOCKED_PENDING_REVIEW"
+        source["unresolved_questions"] = ["Terms evidence still needs review"]
+        source["metadata_review_only"] = True
+        source["permitted_uses"]["public_display"] = True
+        self.assertTrue(any(
+            "blocked/rejected source cannot permit any use" in error
+            for error in validate_document(document)
+        ))
+
+    def test_rejected_source_cannot_permit_any_use(self):
+        document = copy.deepcopy(REGISTER)
+        source = document["sources"][0]
+        source["decision"] = "REJECTED"
+        source["unresolved_questions"] = ["Source is outside the permitted scope"]
+        source["metadata_review_only"] = True
+        source["permitted_uses"]["automated_capture"] = True
+        self.assertTrue(any(
+            "blocked/rejected source cannot permit any use" in error
+            for error in validate_document(document)
+        ))
+
+    def test_metadata_review_only_must_be_boolean(self):
+        document = copy.deepcopy(REGISTER)
+        document["sources"][0]["metadata_review_only"] = "true"
+        self.assertTrue(any(
+            "metadata_review_only must be a boolean" in error
+            for error in validate_document(document)
+        ))
+
     def test_malformed_decision_is_rejected_without_crashing(self):
         for invalid in ([], {}, None, 7):
             with self.subTest(invalid=invalid):
