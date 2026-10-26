@@ -1,21 +1,19 @@
-name: Synthetic PostGIS handoff
+name: PostGIS handoff
 
 on:
   pull_request:
     paths:
-      - "scripts/build_synthetic_product.py"
       - "scripts/run_postgis_handoff.py"
-      - "tests/fixtures/synthetic-places.geojson"
       - "tests/test_postgis_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
       - "docs/geospatial-repository-integration.md"
       - ".github/workflows/postgis-handoff.yml"
   push:
     branches: [main]
     paths:
-      - "scripts/build_synthetic_product.py"
       - "scripts/run_postgis_handoff.py"
-      - "tests/fixtures/synthetic-places.geojson"
       - "tests/test_postgis_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
       - "docs/geospatial-repository-integration.md"
       - ".github/workflows/postgis-handoff.yml"
 
@@ -34,51 +32,60 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Compile and test handoff contract
-        run: |
-          python -m compileall -q scripts tests
-          python -m unittest discover -s tests -p 'test_postgis_handoff.py' -v
+      - name: Test fixture and aggregate contracts without a database
+        run: python -m unittest discover -s tests -p 'test_postgis_handoff.py' -v
 
-  disposable-postgis-handoff:
+  pinned-postgis-cookbook-handoff:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     services:
-      postgis:
+      postgres:
         image: postgis/postgis:16-3.5
         env:
-          POSTGRES_DB: observatory
+          POSTGRES_DB: observatory_ci
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U postgres -d observatory"
+          --health-cmd "pg_isready -U postgres -d observatory_ci"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 12
     steps:
       - uses: actions/checkout@v4
+      - name: Check out pinned PostGIS cookbook
+        uses: actions/checkout@v4
+        with:
+          repository: ZQM-Computing/postgis-cookbook
+          ref: eda8d7ab9379d1c43f55666260ad693868137537
+          path: support/postgis-cookbook
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install pinned database driver
-        run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.2.9"
-      - name: Run synthetic GeoJSON-to-PostGIS handoff
+      - name: Install PostgreSQL client and pinned Python driver
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y postgresql-client
+          python -m pip install --disable-pip-version-check "psycopg[binary]==3.2.9"
+      - name: Load synthetic fixture and execute pinned cookbook RLS pattern
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/observatory
-          PRODUCER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGDATABASE: observatory_ci
+          PGUSER: postgres
+          PGPASSWORD: postgres
         run: |
           python scripts/run_postgis_handoff.py \
             --fixture tests/fixtures/synthetic-places.geojson \
             --output-dir build/postgis-handoff \
-            --producer-commit "$PRODUCER_COMMIT"
-      - name: Upload handoff report and manifest
+            --cookbook-dir support/postgis-cookbook \
+            --cookbook-commit eda8d7ab9379d1c43f55666260ad693868137537
+      - name: Upload reproducible PostGIS handoff evidence
         uses: actions/upload-artifact@v4
         with:
-          name: observatory-postgis-handoff
-          path: |
-            build/postgis-handoff/handoff-report.json
-            build/postgis-handoff/handoff-manifest.json
-            build/postgis-handoff/normalized/qa-report.json
+          name: postgis-handoff
+          path: build/postgis-handoff/
           if-no-files-found: error
           retention-days: 14
