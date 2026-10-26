@@ -8,6 +8,11 @@ import json
 import sys
 from pathlib import Path
 
+try:
+    from scripts.strict_json import loads_strict
+except ModuleNotFoundError:
+    from strict_json import loads_strict
+
 
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
@@ -22,8 +27,8 @@ def verify(input_path: Path, output_dir: Path, pipeline_script: Path | None = No
     errors: list[str] = []
     provenance_path = output_dir / "provenance.json"
     try:
-        provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        provenance = loads_strict(provenance_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError) as exc:
         return [f"provenance.json cannot be read as valid JSON: {exc}"]
     if not isinstance(provenance, dict) or provenance.get("schema_version") != 1:
         return ["provenance schema_version must be 1"]
@@ -65,7 +70,7 @@ def verify(input_path: Path, output_dir: Path, pipeline_script: Path | None = No
     else:
         check_hash("QA report", output_dir / "qa-report.json", qa_record.get("sha256"))
     try:
-        qa = json.loads((output_dir / "qa-report.json").read_text(encoding="utf-8"))
+        qa = loads_strict((output_dir / "qa-report.json").read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as exc:
         errors.append(f"QA report cannot be read as valid JSON: {exc}")
     else:
