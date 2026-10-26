@@ -18,6 +18,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse, urlunparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from strict_json import loads_strict
+from validate_source_rights import validate_document
+
 DEFAULT_REGISTER = Path("config/source-rights.json")
 ALLOWED_HOSTS = {"maps5.vcgov.org"}
 MAX_RESPONSE_BYTES = 2_000_000
@@ -155,8 +158,11 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
 
 
 def build_report(register: Any, opener=None) -> dict[str, Any]:
-    if not isinstance(register, dict) or not isinstance(register.get("sources"), list):
-        raise ValueError("register must be an object containing a sources array")
+    errors = validate_document(register)
+    if errors:
+        preview = "; ".join(errors[:5])
+        suffix = f"; and {len(errors) - 5} more" if len(errors) > 5 else ""
+        raise ValueError(f"source-rights register failed validation: {preview}{suffix}")
     records = [
         capture_one(source, opener=opener) if isinstance(source, dict) else {
             "status": "ERROR", "reason": "source entry is not an object"
@@ -191,7 +197,7 @@ def main() -> int:
     parser.add_argument("--strict", action="store_true", help="Exit nonzero if any eligible metadata request fails.")
     args = parser.parse_args()
     try:
-        register = json.loads(args.register.read_text(encoding="utf-8"))
+        register = loads_strict(args.register.read_text(encoding="utf-8"))
         report = build_report(register)
     except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         print(f"ERROR: cannot build metadata preflight: {exc}", file=sys.stderr)
