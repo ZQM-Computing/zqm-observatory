@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -37,8 +39,12 @@ def sha256_bytes(data: bytes) -> str:
 
 
 def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
+    if path.is_symlink():
+        return [], ["history file must not be a symlink"]
     if not path.exists():
         return [], []
+    if not path.is_file():
+        return [], ["history path must be a regular file"]
     entries: list[dict[str, Any]] = []
     errors: list[str] = []
     try:
@@ -89,38 +95,34 @@ def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
 
 
 def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
-    entries, errors = load_entries(history_path)
-    if errors:
-        return errors
-    # History stores only a basename, so the referenced attestation must live
-    # beside the history file. Reject symlinks to prevent recording bytes from
-    # outside the controlled history directory.
-    if attestation_path.is_symlink():
-        return ["attestation must not be a symlink"]
+    if history_path.is_symlink():
+        return ["history file must not be a symlink"]
+    if history_path.exists() and not history_path.is_file():
+        return ["history path must be a regular file"]
     try:
-        resolved_attestation = attestation_path.resolve(strict=True)
-        resolved_history_dir = history_path.parent.resolve(strict=True)
-        if not resolved_attestation.is_file():
-            return ["attestation must be a regular file"]
-        if resolved_attestation.parent != resolved_history_dir:
-            return ["attestation must be in the history directory"]
-        attestation_bytes = resolved_attestation.read_bytes()
+        # Atomically replace the complete JSONL file to avoid a partial final line
+    # if the process is interrupted while writing. Temp and destination share a
+    # directory so os.replace remains on one filesystem.
+    existing = history_path.read_bytes() if history_path.exists() else b""
+    line = json.dumps(entry, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode("utf-8") + b"\n"
+    temp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile("wb", dir=history_path.parent, prefix=f".{history_path.name}.", suffix=".tmp", delete=False) as stream:
+            temp_name = stream.name
+            stream.write(existing)
+            stream.write(line)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_name, history_path)
+        temp_name = None
     except OSError as exc:
-        return [f"attestation cannot be read: {exc}"]
-    attestation_hash = sha256_bytes(attestation_bytes)
-    if any(entry.get("attestation_sha256") == attestation_hash for entry in entries):
-        return ["attestation already exists in history"]
-    previous = entries[-1]["entry_sha256"] if entries else GENESIS
-    body = {
-        "sequence": len(entries) + 1,
-        "previous_entry_sha256": previous,
-        "attestation_file": attestation_path.name,
-        "attestation_sha256": attestation_hash,
-    }
-    entry = {**body, "entry_sha256": sha256_bytes(canonical_json(body))}
-    history_path.parent.mkdir(parents=True, exist_ok=True)
-    with history_path.open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(json.dumps(entry, sort_keys=True, ensure_ascii=False, separators=(",", ":")) + "\n")
+        return [f"history update failed: {exc}"]
+    finally:
+        if temp_name is not None:
+            try:
+                os.unlink(temp_name)
+            except OSError:
+                pass
     print(f"Appended history entry {entry['sequence']} ({entry['entry_sha256']}). Keep history and attestations under controlled/immutable storage.")
     return []
 
