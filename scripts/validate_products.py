@@ -252,6 +252,10 @@ def validate_data_dir(data_dir: Path) -> list[str]:
         # otherwise files can sit beside reviewed bundles without being gated.
         if entry.name.startswith("."):
             continue
+        # The repository-level data/README.md explains the bundle layout and
+        # is documentation, not an unreviewed data asset.
+        if entry.name == "README.md" and entry.is_file() and not entry.is_symlink():
+            continue
         if entry.is_symlink():
             errors.append(f"{entry}: top-level data entries must not be symlinks")
         elif entry.is_dir():
