@@ -95,8 +95,8 @@ def validate_product(path: Path) -> list[str]:
     missing = sorted(PRODUCT_REQUIRED - product.keys())
     if missing:
         errors.append(f"{path}/product.json: missing fields: {', '.join(missing)}")
-    if product.get("schema_version") != 1:
-        errors.append(f"{path}/product.json: schema_version must be 1")
+    if type(product.get("schema_version")) is not int or product.get("schema_version") != 1:
+        errors.append(f"{path}/product.json: schema_version must be integer 1 (booleans are not valid versions)")
     if product.get("product_id") != folder:
         errors.append(f"{path}/product.json: product_id must equal directory name")
     if not is_iso_date(product.get("publication_date")):
@@ -161,8 +161,11 @@ def validate_product(path: Path) -> list[str]:
             errors.append(f"{path}/product.json: children_identifiable_data must be false")
         if not isinstance(privacy.get("reviewed_by"), str) or not privacy["reviewed_by"].strip():
             errors.append(f"{path}/product.json: privacy_review.reviewed_by must be a non-empty string")
-        if not is_iso_date(privacy.get("review_date")):
+        review_date = privacy.get("review_date")
+        if not is_iso_date(review_date):
             errors.append(f"{path}/product.json: privacy_review.review_date must be YYYY-MM-DD")
+        elif is_iso_date(product.get("publication_date")) and review_date > product["publication_date"]:
+            errors.append(f"{path}/product.json: privacy_review.review_date must not be after product publication_date")
 
     if not sources:
         errors.append(f"{path}/sources.json: at least one source is required")
@@ -205,8 +208,11 @@ def validate_product(path: Path) -> list[str]:
                 valid_url = False
         if not valid_url:
             errors.append(f"{label}: url must be a valid HTTPS URL with a hostname, valid port, and no embedded credentials")
-        if not is_iso_date(source.get("retrieval_date")):
+        retrieval_date = source.get("retrieval_date")
+        if not is_iso_date(retrieval_date):
             errors.append(f"{label}: retrieval_date must be YYYY-MM-DD")
+        elif is_iso_date(product.get("publication_date")) and retrieval_date > product["publication_date"]:
+            errors.append(f"{label}: retrieval_date must not be after product publication_date")
         if not isinstance(source.get("supports"), list) or not source["supports"] or any(not isinstance(x, str) or not x.strip() for x in source["supports"]):
             errors.append(f"{label}: supports must list the claims this source supports")
 
