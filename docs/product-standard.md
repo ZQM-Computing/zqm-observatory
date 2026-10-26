@@ -24,7 +24,7 @@ python scripts/validate_products.py
 ```
 
 The validator checks required metadata, duplicate JSON keys, UTF-8 decoding,
-ISO dates, directory/date agreement, unique and matching source identifiers,
+ISO dates and chronology (sources and privacy review must predate or match publication), directory/date agreement, unique and matching source identifiers,
 HTTPS source links and valid ports, source retrieval dates, portable canonical
 relative asset paths (including rejection of Windows drive-prefixed paths),
 path traversal, symlinks across the whole bundle,

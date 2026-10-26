@@ -221,6 +221,33 @@ class ProductValidationTests(unittest.TestCase):
         errors = validate_product(product_dir)
         self.assertTrue(any("publication_date must match directory date" in error for error in errors))
 
+    def test_boolean_schema_version_is_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["schema_version"] = True
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("schema_version must be integer 1" in error for error in errors))
+
+    def test_source_retrieval_after_publication_date_is_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        sources[0]["retrieval_date"] = "2026-10-26"
+        path.write_text(json.dumps(sources), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("retrieval_date must not be after product publication_date" in error for error in errors))
+
+    def test_privacy_review_after_publication_date_is_rejected(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["privacy_review"]["review_date"] = "2026-10-26"
+        path.write_text(json.dumps(product), encoding="utf-8")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("privacy_review.review_date must not be after product publication_date" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
