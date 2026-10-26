@@ -1,0 +1,84 @@
+name: Synthetic PostGIS handoff
+
+on:
+  pull_request:
+    paths:
+      - "scripts/build_synthetic_product.py"
+      - "scripts/run_postgis_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
+      - "tests/test_postgis_handoff.py"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/postgis-handoff.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/build_synthetic_product.py"
+      - "scripts/run_postgis_handoff.py"
+      - "tests/fixtures/synthetic-places.geojson"
+      - "tests/test_postgis_handoff.py"
+      - "docs/geospatial-repository-integration.md"
+      - ".github/workflows/postgis-handoff.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: postgis-handoff-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Compile and test handoff contract
+        run: |
+          python -m compileall -q scripts tests
+          python -m unittest discover -s tests -p 'test_postgis_handoff.py' -v
+
+  disposable-postgis-handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgis:
+        image: postgis/postgis:16-3.5
+        env:
+          POSTGRES_DB: observatory
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d observatory"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pinned database driver
+        run: python -m pip install --disable-pip-version-check "psycopg[binary]==3.2.9"
+      - name: Run synthetic GeoJSON-to-PostGIS handoff
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/observatory
+          PRODUCER_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python scripts/run_postgis_handoff.py \
+            --fixture tests/fixtures/synthetic-places.geojson \
+            --output-dir build/postgis-handoff \
+            --producer-commit "$PRODUCER_COMMIT"
+      - name: Upload handoff report and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: observatory-postgis-handoff
+          path: |
+            build/postgis-handoff/handoff-report.json
+            build/postgis-handoff/handoff-manifest.json
+            build/postgis-handoff/normalized/qa-report.json
+          if-no-files-found: error
+          retention-days: 14
