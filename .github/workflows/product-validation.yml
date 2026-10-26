@@ -38,6 +38,7 @@ on:
     paths:
       - "data/**"
       - "docs/first-product-release-gate.md"
+      - "docs/first-product-release-gate.md"
       - "docs/methods.md"
       - "docs/roadmap.md"
       - "docs/product-standard.md"
