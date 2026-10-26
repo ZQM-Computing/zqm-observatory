@@ -124,10 +124,12 @@ def query_with_duckdb(path: Path) -> dict[str, Any]:
     connection = duckdb.connect(database=":memory:")
     try:
         connection.execute("LOAD spatial")
-        # Keep geometry decoding explicit so this check exercises GeoParquet WKB.
+        # DuckDB's GeoParquet reader already decodes the WKB column into its
+        # GEOMETRY logical type. ST_GeomFromWKB accepts BLOB/WKB_BLOB, not
+        # an already-decoded GEOMETRY value, so query the typed column directly.
         query = """
             WITH decoded AS (
-                SELECT id, name, category, ST_GeomFromWKB(geometry) AS geom
+                SELECT id, name, category, geometry AS geom
                 FROM read_parquet(?)
             )
             SELECT
