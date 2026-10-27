@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import hashlib
 import json
 import os
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +17,16 @@ try:
     from scripts.strict_json import loads_strict
 except ModuleNotFoundError:
     from strict_json import loads_strict
+
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - exercised on Windows
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - exercised on POSIX
+    msvcrt = None
 
 GENESIS = "0" * 64
 
@@ -94,7 +106,7 @@ def load_entries(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     return entries, errors
 
 
-def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
+def _append_entry_locked(history_path: Path, attestation_path: Path) -> list[str]:
     if history_path.is_symlink():
         return ["history file must not be a symlink"]
     if history_path.exists() and not history_path.is_file():
@@ -162,6 +174,57 @@ def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
                 pass
     print(f"Appended history entry {entry['sequence']} ({entry['entry_sha256']}). Keep history and attestations under controlled/immutable storage.")
     return []
+
+def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
+    """Append one entry while holding an inter-process lock for the full update."""
+    try:
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        with _history_lock(history_path):
+            return _append_entry_locked(history_path, attestation_path)
+    except OSError as exc:
+        return [f"history lock/update failed: {exc}"]
+
+
+
+@contextlib.contextmanager
+def _history_lock(history_path: Path):
+    """Serialize history updates across processes on POSIX and Windows.
+
+    The sidecar lock file is intentionally persistent: unlinking a lock file
+    while another process has it open can split writers across different inodes.
+    """
+    lock_path = history_path.with_name(history_path.name + ".lock")
+    if lock_path.is_symlink():
+        raise OSError("history lock file must not be a symlink")
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        if not os.path.isfile(lock_path):
+            raise OSError("history lock path must be a regular file")
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        elif msvcrt is not None:
+            # msvcrt locks a byte range; ensure byte zero exists before locking.
+            if os.fstat(fd).st_size == 0:
+                os.write(fd, b"\\0")
+                os.fsync(fd)
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+        else:  # pragma: no cover - unsupported runtime
+            raise OSError("no supported inter-process file-locking backend")
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            elif msvcrt is not None:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    finally:
+        os.close(fd)
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
