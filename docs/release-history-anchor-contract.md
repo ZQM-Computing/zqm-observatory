@@ -2,7 +2,7 @@
 
 ## Status and scope
 
-This contract applies to every present or future ZQM Observatory node that writes, mirrors, verifies, or consumes release-history evidence. The repository currently documents and tests local tooling; it does not claim that a distributed node fleet or independent anchoring service is deployed.
+This contract applies to every present or future ZQM Observatory node that writes, mirrors, verifies, or consumes release-history evidence. Each node must carry locally provisioned trust-root configuration and a cached, independently obtained signed checkpoint (with freshness metadata), and must refresh/verify that checkpoint before accepting a release decision. The repository currently documents and tests local tooling; it does not claim that a distributed node fleet or independent anchoring service is deployed.
 
 A hash-linked JSONL file is useful for detecting accidental edits and broken links, but it is not by itself an independent trust anchor. A node must not treat a checkpoint stored only beside the writable history as independent evidence.
 
