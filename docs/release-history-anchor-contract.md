@@ -75,3 +75,20 @@ python scripts/verify_history_checkpoint.py \
 Use the real history path, history identifier, independently delivered checkpoint, trusted public key, and persisted high-water mark for the deployment. The example values are illustrative; do not copy the sequence number blindly. Store the high-water mark in a separately protected state store and update it only after successful verification. A command-line value that an attacker can reset alongside local history is not durable rollback protection.
 
 The verifier rejects malformed payloads, untrusted-key fingerprint mismatch, invalid signatures, stale or implausibly future timestamps, sequence regression below the supplied high-water mark, history-ID mismatch when configured, checkpoints ahead of local history, and a local chain whose checkpointed entry hash differs. It does not retrieve checkpoints, persist a high-water mark, provision trust roots, contact an anchor service, or prove the checkpoint came from an independent administrative domain. Those integrations remain required before any release can be considered externally anchored. Missing checkpoint/key configuration or verifier failure must block release acceptance.
+
+## Checkpoint issuer (implemented; deployment remains separate)
+
+`scripts/create_history_checkpoint.py` creates a signed checkpoint from a fully validated, non-empty local history. It requires an explicitly supplied Ed25519 private-key PEM, stable history ID, issuer identity, and a new output path. It refuses to overwrite an existing checkpoint and does not generate or provision keys. Keep the private key only in the separately controlled anchor trust domain; never place it beside a history directory writable by untrusted release processes.
+
+Example run inside that separately controlled domain:
+
+```sh
+python scripts/create_history_checkpoint.py \
+  --history /trusted-ingest/release-history.jsonl \
+  --private-key /secure/anchor/ed25519-private.pem \
+  --output /checkpoint-export/checkpoint-000042.json \
+  --history-id zqm-observatory-production \
+  --issuer zqm-independent-anchor-01
+```
+
+Deliver the resulting checkpoint and the corresponding public key through independently controlled channels. Verify it on the consuming node with `scripts/verify_history_checkpoint.py`, using that node's separately provisioned trust root and persisted high-water mark. This issuer is a CLI, not a hosted service; running it on the same machine and under the same administrator as the mutable history does not establish independence. Private-key custody, independent delivery, durable high-water storage, key rotation/revocation, and clean-host restoration still require deployment-specific implementation and tests.
