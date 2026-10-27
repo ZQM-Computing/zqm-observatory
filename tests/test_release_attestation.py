@@ -291,6 +291,37 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertIn("history file must not be a symlink", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_history_append_preserves_jsonl_boundary_without_final_newline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first_attestation = root / "first.json"
+            first_attestation.write_text('{"signed":"first"}', encoding="utf-8")
+            second_attestation = root / "second.json"
+            second_attestation.write_text('{"signed":"second"}', encoding="utf-8")
+            first_body = {
+                "sequence": 1,
+                "previous_entry_sha256": GENESIS,
+                "attestation_file": first_attestation.name,
+                "attestation_sha256": sha256_bytes(first_attestation.read_bytes()),
+            }
+            first_entry = {
+                **first_body,
+                "entry_sha256": sha256_bytes(canonical_json(first_body)),
+            }
+            history = root / "history.jsonl"
+            # Simulate a valid one-record JSONL file that lacks its final LF.
+            history.write_text(
+                json.dumps(first_entry, sort_keys=True, separators=(",", ":")),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(append_entry(history, second_attestation), [])
+            entries, errors = load_entries(history)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(entries), 2)
+            self.assertEqual([entry["sequence"] for entry in entries], [1, 2])
+            self.assertTrue(history.read_bytes().endswith(b"\\n"))
+
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
