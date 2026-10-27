@@ -320,7 +320,7 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertEqual(errors, [])
             self.assertEqual(len(entries), 2)
             self.assertEqual([entry["sequence"] for entry in entries], [1, 2])
-            self.assertTrue(history.read_bytes().endswith(b"\\n"))
+            self.assertTrue(history.read_bytes().endswith(b"\n"))
 
     def test_history_chain_detects_edit_and_duplicate(self):
         with tempfile.TemporaryDirectory() as tmp:
