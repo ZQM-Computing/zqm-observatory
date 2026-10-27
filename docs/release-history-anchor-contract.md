@@ -54,3 +54,25 @@ A signed checkpoint proves that the anchor signer endorsed a specific history he
 - [ ] Release authorization remains separate from technical signature and hash validation.
 
 Until an independent anchor service and per-node trust provisioning are implemented and exercised, this document is a required architecture contract—not evidence that external anchoring is already operational.
+
+
+## Offline checkpoint verifier (implemented; anchoring service not deployed)
+
+`scripts/verify_history_checkpoint.py` verifies a checkpoint envelope with exactly two fields: `payload` and base64 `signature`. The payload uses schema version 1 and binds the stable `history_id`, positive `sequence`, exact `entry_sha256`, timezone-aware `issued_at`, `issuer`, the `Ed25519` algorithm, and the SHA-256 fingerprint of the signing public key's DER SubjectPublicKeyInfo encoding. The signature covers the repository's canonical JSON encoding of the entire payload, including a final LF.
+
+Example:
+
+```sh
+python -m pip install -r requirements-security.txt
+python scripts/verify_history_checkpoint.py \
+  --history data/release-history.jsonl \
+  --checkpoint /securely-delivered/checkpoint.json \
+  --public-key /etc/zqm/trust/anchor-ed25519-public.pem \
+  --history-id zqm-observatory-production \
+  --max-age-seconds 86400 \
+  --minimum-sequence 42
+```
+
+Use the real history path, history identifier, independently delivered checkpoint, trusted public key, and persisted high-water mark for the deployment. The example values are illustrative; do not copy the sequence number blindly. Store the high-water mark in a separately protected state store and update it only after successful verification. A command-line value that an attacker can reset alongside local history is not durable rollback protection.
+
+The verifier rejects malformed payloads, untrusted-key fingerprint mismatch, invalid signatures, stale or implausibly future timestamps, sequence regression below the supplied high-water mark, history-ID mismatch when configured, checkpoints ahead of local history, and a local chain whose checkpointed entry hash differs. It does not retrieve checkpoints, persist a high-water mark, provision trust roots, contact an anchor service, or prove the checkpoint came from an independent administrative domain. Those integrations remain required before any release can be considered externally anchored. Missing checkpoint/key configuration or verifier failure must block release acceptance.
