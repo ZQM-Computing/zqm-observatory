@@ -129,7 +129,7 @@ class HistoryCheckpointTests(unittest.TestCase):
     def test_state_file_rejects_checkpoint_sequence_rollback(self):
         state = self.root / "rollback-state.json"
         second_attestation = self.root / "attestation-2.json"
-        second_attestation.write_text('{"synthetic":2}\\n', encoding="utf-8")
+        second_attestation.write_text('{"synthetic":2}\n', encoding="utf-8")
         self.assertEqual(append_entry(self.history, second_attestation), [])
         self.entries, errors = load_entries(self.history)
         self.assertEqual(errors, [])
@@ -142,19 +142,19 @@ class HistoryCheckpointTests(unittest.TestCase):
 
     def test_state_file_rejects_corrupt_existing_state(self):
         state = self.root / "rollback-state.json"
-        state.write_text('{"sequence":999}\\n', encoding="utf-8")
+        state.write_text('{"sequence":999}\n', encoding="utf-8")
         errors = verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01")
         self.assertTrue(any("schema" in error for error in errors))
-        self.assertEqual(state.read_text(encoding="utf-8"), '{"sequence":999}\\n')
+        self.assertEqual(state.read_text(encoding="utf-8"), '{"sequence":999}\n')
 
     def test_state_file_rejects_symlink(self):
         state = self.root / "rollback-state.json"
         target = self.root / "actual-state.json"
-        target.write_text('{}\\n', encoding="utf-8")
+        target.write_text('{}\n', encoding="utf-8")
         state.symlink_to(target)
         errors = verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01")
         self.assertTrue(any("symlinks" in error for error in errors))
-        self.assertEqual(target.read_text(encoding="utf-8"), '{}\\n')
+        self.assertEqual(target.read_text(encoding="utf-8"), '{}\n')
 
     def test_expected_history_identifier_is_enforced(self):
         self.assertTrue(any("history_id" in e for e in verify_checkpoint(
