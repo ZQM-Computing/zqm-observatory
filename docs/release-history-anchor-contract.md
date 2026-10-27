@@ -55,7 +55,6 @@ A signed checkpoint proves that the anchor signer endorsed a specific history he
 
 Until an independent anchor service and per-node trust provisioning are implemented and exercised, this document is a required architecture contract—not evidence that external anchoring is already operational.
 
-
 ## Offline checkpoint verifier (implemented; anchoring service not deployed)
 
 `scripts/verify_history_checkpoint.py` verifies a checkpoint envelope with exactly two fields: `payload` and base64 `signature`. The payload uses schema version 1 and binds the stable `history_id`, positive `sequence`, exact `entry_sha256`, timezone-aware `issued_at`, `issuer`, the `Ed25519` algorithm, and the SHA-256 fingerprint of the signing public key's DER SubjectPublicKeyInfo encoding. The signature covers the repository's canonical JSON encoding of the entire payload, including a final LF.
