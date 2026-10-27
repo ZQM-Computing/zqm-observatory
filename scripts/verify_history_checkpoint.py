@@ -278,11 +278,11 @@ def verify_and_update_state(
                     return ["checkpoint history_id changed from persisted rollback state"]
                 if current["key_fingerprint"] != prior["key_fingerprint"]:
                     return ["checkpoint signing key changed; explicit trusted key-rotation procedure required"]
+                if _parse_timestamp(current["issued_at"]) < _parse_timestamp(prior["issued_at"]):
+                    return ["checkpoint issuance timestamp regressed from persisted rollback state"]
                 if current["sequence"] == prior["sequence"]:
                     if current["entry_sha256"] != prior["entry_sha256"]:
                         return ["same-sequence checkpoint conflicts with persisted rollback state"]
-                    if _parse_timestamp(current["issued_at"]) < _parse_timestamp(prior["issued_at"]):
-                        return ["checkpoint issuance timestamp regressed at the same sequence"]
             temp_name: str | None = None
             try:
                 with tempfile.NamedTemporaryFile(
