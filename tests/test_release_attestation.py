@@ -292,6 +292,27 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertIn("history file must not be a symlink", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
 
+    def test_history_append_rejects_symlinked_lock_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history.jsonl"
+            history.write_text("", encoding="utf-8")
+            target = root / "other-lock"
+            target.write_text("", encoding="utf-8")
+            lock_path = root / "history.jsonl.lock"
+            try:
+                lock_path.symlink_to(target)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlink creation is unavailable on this platform")
+            attestation = root / "attestation.json"
+            attestation.write_text('{"signed":true}', encoding="utf-8")
+
+            errors = append_entry(history, attestation)
+
+            self.assertTrue(any("lock file must not be a symlink" in error for error in errors))
+            self.assertEqual(history.read_bytes(), b"")
+            self.assertEqual(target.read_bytes(), b"")
+
     def test_concurrent_history_appends_are_serialized(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
