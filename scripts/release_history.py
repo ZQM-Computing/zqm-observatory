@@ -142,8 +142,8 @@ def append_entry(history_path: Path, attestation_path: Path) -> list[str]:
         # A valid final JSON object may exist without a trailing newline. Insert
         # the JSONL record separator before adding the next entry so records
         # never become concatenated into one invalid line.
-        if existing and not existing.endswith(b"\\n"):
-            existing += b"\\n"
+        if existing and not existing.endswith(b"\n"):
+            existing += b"\n"
         with tempfile.NamedTemporaryFile("wb", dir=history_path.parent, prefix=f".{history_path.name}.", suffix=".tmp", delete=False) as stream:
             temp_name = stream.name
             stream.write(existing)
