@@ -98,7 +98,8 @@ When using the signed release-attestation and JSONL history tools, treat the his
 - [ ] Run the release-evidence verifier against the exact bundle before signing; signing must fail closed when independent verification fails.
 - [ ] Verify each signed attestation with an explicitly trusted public key and the expected manifest. A matching file hash in the history proves byte consistency only; it does not verify the attestation signature.
 - [ ] Keep the history and attestation files in controlled storage with access controls and backups. Retain an independently protected checkpoint of the latest history hash outside the writable history location; compare it during review to detect whole-history replacement or truncation.
-- [ ] Serialize all history append operations. The writer uses atomic replacement to avoid partial-file writes, but it does **not** provide a multi-writer lock; concurrent appenders can overwrite each other's updates.
+- [ ] Serialize all history append operations using the stable sidecar lock; hold the inter-process lock across read, validation, sequence selection, and atomic replacement. Never unlink the lock file during routine operation.
+- [ ] Apply the per-node trust and independent checkpoint requirements in [release-history concurrency and external-anchor contract](release-history-anchor-contract.md). A checkpoint stored only beside the writable history is not independent; stale, missing, unverifiable, or regressed anchors block acceptance.
 - [ ] After append, verify the complete chain and all referenced attestation hashes. Preserve the exact commit, command output, trusted-key fingerprint, and external checkpoint used for the release decision.
 - [ ] Keep release authorization separate: signatures, hashes, and successful CI do not grant reuse rights or authorize publication. A blocked manifest remains blocked until the required source-rights, privacy, quality, and human-review gates are independently resolved.
 
