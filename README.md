@@ -100,6 +100,7 @@ Every question travels the same cycle: **Direction → Collection → Processing
 - [Scope](docs/scope.md) — mission, intended users, and explicit boundaries.
 - [Methods](docs/methods.md) — evidence, repeatability, field verification, privacy, and corrections.
 - [First-product release gate](docs/first-product-release-gate.md) — operational checklist from question selection through independent review and publication decision.
+- [Release-history concurrency and external-anchor contract](docs/release-history-anchor-contract.md) — required writer locking, per-node trust roots, independent checkpoints, freshness/rollback handling, and fail-closed release behavior.
 - [Data product standard](docs/product-standard.md) — machine-checkable product-bundle contract.
 - [Data sources](docs/data-sources.md) — candidate source categories and the current Volusia research.
 - [Source rights review](docs/source-rights-review.md) — item-level rights-evidence workflow.
