@@ -16,7 +16,7 @@ except ImportError:
     Ed25519PrivateKey = None
 
 from scripts.release_history import append_entry, load_entries, canonical_json
-from scripts.verify_history_checkpoint import verify_checkpoint
+from scripts.verify_history_checkpoint import verify_checkpoint, verify_and_update_state
 
 
 @unittest.skipIf(Ed25519PrivateKey is None, "optional cryptography dependency is not installed")
@@ -117,6 +117,44 @@ class HistoryCheckpointTests(unittest.TestCase):
         self.assertTrue(any("ahead of local history" in e for e in verify_checkpoint(
             self.history, self.checkpoint_path, self.public_path, now=self.now,
         )))
+
+    def test_state_file_persists_accepted_checkpoint(self):
+        state = self.root / "rollback-state.json"
+        self.assertEqual(verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01"), [])
+        persisted = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(persisted["sequence"], 1)
+        self.assertEqual(persisted["entry_sha256"], self.entries[0]["entry_sha256"])
+        self.assertTrue((self.root / "rollback-state.json.lock").exists())
+
+    def test_state_file_rejects_checkpoint_sequence_rollback(self):
+        state = self.root / "rollback-state.json"
+        second_attestation = self.root / "attestation-2.json"
+        second_attestation.write_text('{"synthetic":2}\\n', encoding="utf-8")
+        self.assertEqual(append_entry(self.history, second_attestation), [])
+        self.entries, errors = load_entries(self.history)
+        self.assertEqual(errors, [])
+        self._write_checkpoint(sequence=2)
+        self.assertEqual(verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01"), [])
+        self._write_checkpoint(sequence=1)
+        errors = verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01")
+        self.assertTrue(any("regressed" in error for error in errors))
+        self.assertEqual(json.loads(state.read_text(encoding="utf-8"))["sequence"], 2)
+
+    def test_state_file_rejects_corrupt_existing_state(self):
+        state = self.root / "rollback-state.json"
+        state.write_text('{"sequence":999}\\n', encoding="utf-8")
+        errors = verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01")
+        self.assertTrue(any("schema" in error for error in errors))
+        self.assertEqual(state.read_text(encoding="utf-8"), '{"sequence":999}\\n')
+
+    def test_state_file_rejects_symlink(self):
+        state = self.root / "rollback-state.json"
+        target = self.root / "actual-state.json"
+        target.write_text('{}\\n', encoding="utf-8")
+        state.symlink_to(target)
+        errors = verify_and_update_state(self.history, self.checkpoint_path, self.public_path, state, now=self.now, expected_history_id="test-history-01")
+        self.assertTrue(any("symlinks" in error for error in errors))
+        self.assertEqual(target.read_text(encoding="utf-8"), '{}\\n')
 
     def test_expected_history_identifier_is_enforced(self):
         self.assertTrue(any("history_id" in e for e in verify_checkpoint(
