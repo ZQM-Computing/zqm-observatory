@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
 import io
 import json
 import tempfile
@@ -290,6 +291,26 @@ class ReleaseAttestationTests(unittest.TestCase):
             self.assertEqual(result, 1)
             self.assertIn("history file must not be a symlink", stderr.getvalue())
             self.assertNotIn("Traceback", stderr.getvalue())
+
+    def test_concurrent_history_appends_are_serialized(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history = root / "history.jsonl"
+            attestations = []
+            for index in range(8):
+                attestation = root / f"attestation-{index}.json"
+                attestation.write_text(json.dumps({"signed": index}), encoding="utf-8")
+                attestations.append(attestation)
+
+            with ThreadPoolExecutor(max_workers=len(attestations)) as executor:
+                results = list(executor.map(lambda path: append_entry(history, path), attestations))
+
+            self.assertEqual(results, [[] for _ in attestations])
+            entries, errors = load_entries(history)
+            self.assertEqual(errors, [])
+            self.assertEqual(len(entries), len(attestations))
+            self.assertEqual([entry["sequence"] for entry in entries], list(range(1, len(attestations) + 1)))
+            self.assertEqual(len({entry["attestation_sha256"] for entry in entries}), len(attestations))
 
     def test_history_append_preserves_jsonl_boundary_without_final_newline(self):
         with tempfile.TemporaryDirectory() as tmp:
