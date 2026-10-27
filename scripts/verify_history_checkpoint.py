@@ -8,11 +8,23 @@ from __future__ import annotations
 
 import argparse
 import base64
+import contextlib
 import hashlib
 import json
+import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+try:
+    import fcntl
+except ImportError:  # pragma: no cover - Windows
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:  # pragma: no cover - POSIX
+    msvcrt = None
 from typing import Any
 
 try:
@@ -161,28 +173,173 @@ def verify_checkpoint(
     return errors
 
 
+
+STATE_SCHEMA_VERSION = 1
+
+
+@contextlib.contextmanager
+def _state_lock(state_path: Path):
+    """Serialize state read/verify/write; keep the sidecar lock inode persistent."""
+    lock_path = state_path.with_name(state_path.name + ".lock")
+    if state_path.is_symlink() or lock_path.is_symlink():
+        raise OSError("state and state lock paths must not be symlinks")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_CREAT | os.O_RDWR
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(lock_path, flags, 0o600)
+    try:
+        if not os.path.isfile(lock_path):
+            raise OSError("state lock path must be a regular file")
+        if fcntl is not None:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+        elif msvcrt is not None:
+            if os.fstat(fd).st_size == 0:
+                os.write(fd, b"\\0")
+                os.fsync(fd)
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
+        else:  # pragma: no cover
+            raise OSError("no supported inter-process state-locking backend")
+        try:
+            yield
+        finally:
+            if fcntl is not None:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            elif msvcrt is not None:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+    finally:
+        os.close(fd)
+
+
+def verify_and_update_state(
+    history_path: Path,
+    checkpoint_path: Path,
+    trusted_public_key_path: Path,
+    state_path: Path,
+    *,
+    max_age_seconds: int = 86400,
+    now: datetime | None = None,
+    expected_history_id: str | None = None,
+) -> list[str]:
+    """Verify a checkpoint and monotonically persist its accepted high-water mark.
+
+    State durability/independence is deployment-dependent. Protect this file and
+    its backups separately from writable history; a local file alone is not an
+    independent anchor against an administrator able to replace both.
+    """
+    try:
+        with _state_lock(state_path):
+            prior: dict[str, Any] | None = None
+            if state_path.exists():
+                prior, state_errors = _read_json(state_path, "rollback state")
+                if state_errors:
+                    return state_errors
+                if prior is None or set(prior) != {
+                    "schema_version", "history_id", "sequence", "entry_sha256",
+                    "issued_at", "key_fingerprint",
+                }:
+                    return ["rollback state schema is invalid; recover from a separately trusted copy"]
+                if type(prior.get("schema_version")) is not int or prior["schema_version"] != STATE_SCHEMA_VERSION:
+                    return ["rollback state schema_version is unsupported"]
+                if type(prior.get("sequence")) is not int or prior["sequence"] < 1:
+                    return ["rollback state sequence is invalid"]
+                if _parse_timestamp(prior.get("issued_at")) is None:
+                    return ["rollback state issued_at is invalid"]
+                for field in ("history_id", "entry_sha256", "key_fingerprint"):
+                    if not isinstance(prior.get(field), str) or not prior[field]:
+                        return [f"rollback state {field} is invalid"]
+            checkpoint, read_errors = _read_json(checkpoint_path, "checkpoint")
+            if read_errors or checkpoint is None:
+                return read_errors or ["checkpoint could not be read"]
+            payload = checkpoint.get("payload")
+            if not isinstance(payload, dict):
+                return ["checkpoint payload is invalid"]
+            minimum_sequence = prior["sequence"] if prior else 0
+            errors = verify_checkpoint(
+                history_path, checkpoint_path, trusted_public_key_path,
+                max_age_seconds=max_age_seconds, now=now,
+                minimum_sequence=minimum_sequence,
+                expected_history_id=expected_history_id or (prior.get("history_id") if prior else None),
+            )
+            if errors:
+                return errors
+            current = {
+                "schema_version": STATE_SCHEMA_VERSION,
+                "history_id": payload["history_id"],
+                "sequence": payload["sequence"],
+                "entry_sha256": payload["entry_sha256"],
+                "issued_at": payload["issued_at"],
+                "key_fingerprint": payload["key_fingerprint"],
+            }
+            if prior:
+                if current["history_id"] != prior["history_id"]:
+                    return ["checkpoint history_id changed from persisted rollback state"]
+                if current["key_fingerprint"] != prior["key_fingerprint"]:
+                    return ["checkpoint signing key changed; explicit trusted key-rotation procedure required"]
+                if current["sequence"] == prior["sequence"]:
+                    if current["entry_sha256"] != prior["entry_sha256"]:
+                        return ["same-sequence checkpoint conflicts with persisted rollback state"]
+                    if _parse_timestamp(current["issued_at"]) < _parse_timestamp(prior["issued_at"]):
+                        return ["checkpoint issuance timestamp regressed at the same sequence"]
+            temp_name: str | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    "w", encoding="utf-8", newline="\\n", dir=state_path.parent,
+                    prefix=f".{state_path.name}.", suffix=".tmp", delete=False,
+                ) as stream:
+                    temp_name = stream.name
+                    json.dump(current, stream, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+                    stream.write("\\n")
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temp_name, state_path)
+                temp_name = None
+            finally:
+                if temp_name is not None:
+                    try:
+                        os.unlink(temp_name)
+                    except OSError:
+                        pass
+            return []
+    except OSError as exc:
+        return [f"rollback state lock/update failed: {exc}"]
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--history", required=True, type=Path, help="local release-history JSONL")
     parser.add_argument("--checkpoint", required=True, type=Path, help="independently obtained signed checkpoint JSON")
     parser.add_argument("--public-key", required=True, type=Path, help="out-of-band trusted Ed25519 public key PEM")
     parser.add_argument("--max-age-seconds", type=int, default=86400)
-    parser.add_argument("--minimum-sequence", type=int, default=0, help="persisted high-water mark; prevents accepted rollback")
+    parser.add_argument("--minimum-sequence", type=int, default=0, help="externally persisted high-water sequence; prevents accepted rollback")
+    parser.add_argument("--state-file", type=Path, help="atomically persist the accepted high-water mark; protect this file independently")
     parser.add_argument("--history-id", help="expected stable history identifier from trusted configuration")
     args = parser.parse_args()
-    errors = verify_checkpoint(
-        args.history, args.checkpoint, args.public_key,
-        max_age_seconds=args.max_age_seconds,
-        minimum_sequence=args.minimum_sequence,
-        expected_history_id=args.history_id,
-    )
+    if args.state_file:
+        errors = verify_and_update_state(
+            args.history, args.checkpoint, args.public_key, args.state_file,
+            max_age_seconds=args.max_age_seconds,
+            expected_history_id=args.history_id,
+        )
+    else:
+        errors = verify_checkpoint(
+            args.history, args.checkpoint, args.public_key,
+            max_age_seconds=args.max_age_seconds,
+            minimum_sequence=args.minimum_sequence,
+            expected_history_id=args.history_id,
+        )
     if errors:
         print("CHECKPOINT INVALID / BLOCKED", file=sys.stderr)
         for error in errors:
             print(f"- {error}", file=sys.stderr)
         return 1
     print("CHECKPOINT SIGNATURE AND LOCAL HISTORY MATCH VERIFIED")
-    print("Operational independence depends on out-of-band key provisioning and checkpoint delivery.")
+    if args.state_file:
+        print("Accepted checkpoint high-water mark persisted under the state-file lock.")
+        print("Protect the state file and backups in a separate trust domain; local state alone is not an external anchor.")
+    else:
+        print("Operational independence depends on out-of-band key provisioning and checkpoint delivery.")
     return 0
 
 
