@@ -195,7 +195,7 @@ def _state_lock(state_path: Path):
             fcntl.flock(fd, fcntl.LOCK_EX)
         elif msvcrt is not None:
             if os.fstat(fd).st_size == 0:
-                os.write(fd, b"\\0")
+                os.write(fd, b"\0")
                 os.fsync(fd)
             os.lseek(fd, 0, os.SEEK_SET)
             msvcrt.locking(fd, msvcrt.LK_LOCK, 1)
@@ -286,12 +286,12 @@ def verify_and_update_state(
             temp_name: str | None = None
             try:
                 with tempfile.NamedTemporaryFile(
-                    "w", encoding="utf-8", newline="\\n", dir=state_path.parent,
+                    "w", encoding="utf-8", newline="\n", dir=state_path.parent,
                     prefix=f".{state_path.name}.", suffix=".tmp", delete=False,
                 ) as stream:
                     temp_name = stream.name
                     json.dump(current, stream, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-                    stream.write("\\n")
+                    stream.write("\n")
                     stream.flush()
                     os.fsync(stream.fileno())
                 os.replace(temp_name, state_path)
