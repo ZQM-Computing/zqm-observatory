@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
-from scripts.build_synthetic_product import build, write_draft_bundle
+from scripts.build_synthetic_product import DEMO_PRODUCT_ID, build, write_draft_bundle
 from scripts.validate_products import validate_product
 
 
@@ -91,6 +94,51 @@ class SyntheticPipelineTests(unittest.TestCase):
             qa = json.loads((output / "qa-report.json").read_text(encoding="utf-8"))
             self.assertTrue(any("properties.name must be a non-empty string" in e for e in qa["errors"]))
             self.assertFalse((output / "normalized.geojson").exists())
+
+    def test_cli_rerun_clears_draft_and_rejects_noncanonical_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            bundle = bundles / DEMO_PRODUCT_ID
+            command = [sys.executable, str(FIXTURE.parents[2] / "scripts/build_synthetic_product.py"),
+                       "--output-dir", str(output), "--bundle-dir", str(bundles)]
+            for invalid in ("{not json", '{"type":"FeatureCollection","features":[]}',
+                            '{"type":"FeatureCollection","features":[{}]}'):
+                with self.subTest(invalid=invalid):
+                    success = subprocess.run(command + ["--input", str(FIXTURE)], capture_output=True)
+                    self.assertEqual(success.returncode, 0, success.stderr)
+                    self.assertTrue((bundle / "product.json").exists())
+                    source = root / "custom.geojson"
+                    source.write_text(invalid, encoding="utf-8")
+                    failed = subprocess.run(command + ["--input", str(source)], capture_output=True)
+                    self.assertEqual(failed.returncode, 1, failed.stderr)
+                    self.assertEqual(list(bundle.iterdir()), [])
+                    qa = json.loads((output / "qa-report.json").read_bytes())
+                    if qa["status"] == "failed":
+                        self.assertFalse((output / "normalized.geojson").exists())
+                        self.assertFalse((output / "provenance.json").exists())
+                    else:
+                        self.assertIn(b"canonical synthetic fixture", failed.stderr)
+                        # Custom inputs remain supported for artifact-only builds.
+                        artifact_only = command[:4] + ["--input", str(source)]
+                        self.assertEqual(subprocess.run(artifact_only, capture_output=True).returncode, 0)
+
+    def test_interrupted_bundle_rebuild_revokes_previous_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            self.assertEqual(build(FIXTURE, output), 0)
+            bundle = write_draft_bundle(output, bundles)
+            product_path = bundle / "product.json"
+            product = json.loads(product_path.read_bytes())
+            product["privacy_review"].update(reviewed=True, reviewed_by="Synthetic test reviewer")
+            product_path.write_text(json.dumps(product), encoding="utf-8")
+            self.assertEqual(validate_product(bundle), [])
+            with patch("scripts.build_synthetic_product.shutil.copyfile", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    write_draft_bundle(output, bundles)
+            self.assertFalse(product_path.exists())
+            self.assertTrue(validate_product(bundle))
 
     def test_draft_bundle_matches_product_contract_but_fails_closed_for_review(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

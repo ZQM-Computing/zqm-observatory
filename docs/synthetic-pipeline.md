@@ -1,3 +1,7 @@
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:4b5249c4236fd2a53b32f86e0cb6ade833a986e2da23c70bc7e632e508641436 -->
+
 # Synthetic pipeline: quickstart and contract
 
 This is the first end-to-end engineering slice for the Observatory. It proves a
@@ -34,7 +38,10 @@ No build timestamp is inserted, so hashes remain useful for comparisons.
 The optional `--bundle-dir` flag packages the three generated artifacts with
 `product.json`, `sources.json`, and `method.md` in a dated, standards-shaped
 draft bundle. The bundle is written under `build/`, not `data/`, and is not a
-published product. Its privacy review deliberately remains incomplete
+published product. Bundle generation accepts only input bytes identical to the
+canonical repository fixture; other valid inputs remain supported without
+`--bundle-dir`. This keeps the source declaration and feature summary accurate.
+Its privacy review deliberately remains incomplete
 (`reviewed: false`), so `python scripts/validate_products.py --data-dir
 build/synthetic-product-bundle` must reject it until a human reviewer records
 the required review. This is an intentional release-gate test, not a validation
@@ -45,7 +52,10 @@ failure to suppress. Do not change the review fields merely to make CI green.
 On invalid input, the pipeline writes a failure QA report, returns exit code 1,
 and does not emit normalized data or provenance. It removes stale data/provenance
 outputs from a prior successful run in the same output directory. This prevents
-a failed run from leaving old outputs looking current.
+a failed run from leaving old outputs looking current. When `--bundle-dir` is
+supplied, the pipeline also clears its previous draft files before building.
+Bundle rewrites revoke previous privacy approval before replacing assets, so an
+interrupted rewrite cannot retain approval for changed data.
 
 ## Deliberate limits
 
@@ -55,3 +65,5 @@ external source licenses, source truth, field conditions, or privacy risk in
 real datasets. The provenance record explicitly sets `publication_authorized`
 to `false`. Human rights, privacy, factual, and product review gates remain
 mandatory for any future real-source product.
+
+<!-- /coderabbit-ai-generated:v1 -->

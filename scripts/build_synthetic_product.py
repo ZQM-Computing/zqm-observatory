@@ -17,6 +17,7 @@ from typing import Any
 
 PIPELINE_VERSION = "0.1.0"
 REQUIRED_PROPERTIES = {"id", "name", "category"}
+CANONICAL_FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/synthetic-places.geojson"
 DEMO_PRODUCT_ID = "2026-10-25-synthetic-geospatial-demo"
 
 
@@ -204,6 +205,11 @@ def build(input_path: Path, output_dir: Path) -> int:
 def write_draft_bundle(output_dir: Path, bundle_root: Path) -> Path:
     """Package outputs as a standards-shaped draft that remains review-blocked."""
     bundle = bundle_root / DEMO_PRODUCT_ID
+    # Revoke any earlier approval before touching data, including on interruption.
+    (bundle / "product.json").unlink(missing_ok=True)
+    provenance = json.loads((output_dir / "provenance.json").read_bytes())
+    if provenance["input"]["sha256"] != sha256_bytes(CANONICAL_FIXTURE.read_bytes()):
+        raise ValueError("draft bundles require the canonical synthetic fixture content")
     bundle.mkdir(parents=True, exist_ok=True)
     asset_names = ("normalized.geojson", "qa-report.json", "provenance.json")
     for name in asset_names:
@@ -275,9 +281,19 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("build/synthetic-product"))
     parser.add_argument("--bundle-dir", type=Path, help="optional root directory for a standards-shaped, review-blocked draft bundle")
     args = parser.parse_args()
+    if args.bundle_dir is not None:
+        bundle = args.bundle_dir / DEMO_PRODUCT_ID
+        # Clear only files owned by this pipeline, with approval removed first.
+        for name in ("product.json", "normalized.geojson", "qa-report.json",
+                     "provenance.json", "sources.json", "method.md"):
+            (bundle / name).unlink(missing_ok=True)
     result = build(args.input, args.output_dir)
     if result == 0 and args.bundle_dir is not None:
-        bundle = write_draft_bundle(args.output_dir, args.bundle_dir)
+        try:
+            bundle = write_draft_bundle(args.output_dir, args.bundle_dir)
+        except ValueError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
         print(f"Draft product bundle created at {bundle}; publication remains blocked pending human privacy review.")
     return result
 
