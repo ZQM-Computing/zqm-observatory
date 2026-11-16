@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.build_synthetic_product import build
 
@@ -17,7 +18,9 @@ class SyntheticPipelineTests(unittest.TestCase):
             root = Path(tmp)
             out_a, out_b = root / "a", root / "b"
             self.assertEqual(build(FIXTURE, out_a), 0)
-            self.assertEqual(build(FIXTURE, out_b), 0)
+            renamed = root / "renamed.geojson"
+            renamed.write_bytes(FIXTURE.read_bytes())
+            self.assertEqual(build(renamed, out_b), 0)
             for name in ("normalized.geojson", "qa-report.json", "provenance.json"):
                 self.assertEqual((out_a / name).read_bytes(), (out_b / name).read_bytes())
             provenance = json.loads((out_a / "provenance.json").read_text(encoding="utf-8"))
@@ -41,6 +44,68 @@ class SyntheticPipelineTests(unittest.TestCase):
             qa = json.loads((output / "qa-report.json").read_text(encoding="utf-8"))
             self.assertEqual(qa["status"], "failed")
             self.assertTrue(any("duplicate feature id" in e for e in qa["errors"]))
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
+    def test_whitespace_duplicate_ids_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            raw["features"][1]["properties"]["id"] = " " + raw["features"][0]["properties"]["id"] + " "
+            source = root / "duplicate.geojson"
+            source.write_text(json.dumps(raw), encoding="utf-8")
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            self.assertEqual(build(source, output), 1)
+            qa = json.loads((output / "qa-report.json").read_bytes())
+            self.assertFalse(qa["checks"]["unique_ids"])
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
+    def test_malformed_geometry_types_remove_stale_outputs(self) -> None:
+        for geometry_type in ([], {}, None, 17, ["Point"]):
+            with self.subTest(geometry_type=geometry_type), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                output = root / "out"
+                self.assertEqual(build(FIXTURE, output), 0)
+                raw = json.loads(FIXTURE.read_bytes())
+                raw["features"][0]["geometry"]["type"] = geometry_type
+                source = root / "invalid.geojson"
+                source.write_text(json.dumps(raw), encoding="utf-8")
+                self.assertEqual(build(source, output), 1)
+                qa = json.loads((output / "qa-report.json").read_bytes())
+                self.assertEqual(qa["status"], "failed")
+                self.assertFalse(qa["checks"]["point_geometry"])
+                self.assertFalse((output / "normalized.geojson").exists())
+                self.assertFalse((output / "provenance.json").exists())
+
+    def test_empty_collection_omits_bbox(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "empty.geojson"
+            source.write_text(json.dumps({"type": "FeatureCollection", "features": []}), encoding="utf-8")
+            self.assertEqual(build(source, root / "out"), 0)
+            output = json.loads((root / "out/normalized.geojson").read_bytes())
+            self.assertEqual(output["features"], [])
+            self.assertNotIn("bbox", output)
+            qa = json.loads((root / "out/qa-report.json").read_bytes())
+            self.assertIsNone(qa["bbox"])
+            self.assertEqual(qa["status"], "passed")
+
+    def test_output_write_failure_removes_stale_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "out"
+            original_write = Path.write_bytes
+
+            def fail_provenance(path: Path, data: bytes) -> int:
+                if path.name == "provenance.json":
+                    raise OSError("simulated write failure")
+                return original_write(path, data)
+
+            self.assertEqual(build(FIXTURE, output), 0)
+            with patch.object(Path, "write_bytes", fail_provenance):
+                self.assertEqual(build(FIXTURE, output), 1)
+            self.assertEqual(json.loads((output / "qa-report.json").read_bytes())["status"], "failed")
             self.assertFalse((output / "normalized.geojson").exists())
             self.assertFalse((output / "provenance.json").exists())
 

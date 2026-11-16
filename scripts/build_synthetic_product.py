@@ -73,7 +73,7 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
                 invalid_property = True
         if invalid_property:
             continue
-        feature_id = properties.get("id")
+        feature_id = properties["id"].strip()
         if isinstance(feature_id, str) and feature_id:
             if feature_id in seen_ids:
                 errors.append(f"{label}: duplicate feature id {feature_id!r}")
@@ -119,6 +119,7 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
             feature.get("geometry", {}).get("type", "missing")
             for feature in features if isinstance(feature, dict)
             and isinstance(feature.get("geometry"), dict)
+            and isinstance(feature["geometry"].get("type", "missing"), str)
         }),
         "coordinate_reference": "OGC:CRS84 (GeoJSON longitude, latitude order)",
         "bbox": bbox,
@@ -136,9 +137,10 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
     output = {
         "type": "FeatureCollection",
         "name": "observatory-synthetic-demo",
-        "bbox": bbox,
         "features": normalized,
     }
+    if bbox is not None:
+        output["bbox"] = bbox
     return output, qa, []
 
 
@@ -165,13 +167,13 @@ def build(input_path: Path, output_dir: Path) -> int:
 
     normalized, qa, errors = normalize(document)
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
     if normalized is None or errors:
         # Fail closed: no normalized data or provenance is emitted for bad input.
         for name in ("normalized.geojson", "provenance.json"):
             target = output_dir / name
             if target.exists():
                 target.unlink()
+        (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
 
@@ -181,7 +183,7 @@ def build(input_path: Path, output_dir: Path) -> int:
         "pipeline": "zqm-observatory-synthetic-pipeline",
         "pipeline_version": PIPELINE_VERSION,
         "input": {
-            "path": input_path.name,
+            "path": "sha256:" + sha256_bytes(raw),
             "sha256": sha256_bytes(raw),
             "classification": "synthetic fixture; no external source collected",
         },
@@ -192,8 +194,20 @@ def build(input_path: Path, output_dir: Path) -> int:
         "reproducibility": "Deterministic for identical input bytes and pipeline version.",
         "publication_authorized": False,
     }
-    (output_dir / "normalized.geojson").write_bytes(normalized_bytes)
-    (output_dir / "provenance.json").write_bytes(canonical_json(provenance))
+    # Invalidate the previous generation before writing; publish passing QA last.
+    for name in ("qa-report.json", "normalized.geojson", "provenance.json"):
+        (output_dir / name).unlink(missing_ok=True)
+    try:
+        (output_dir / "normalized.geojson").write_bytes(normalized_bytes)
+        (output_dir / "provenance.json").write_bytes(canonical_json(provenance))
+        (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
+    except OSError as exc:
+        for name in ("normalized.geojson", "provenance.json"):
+            (output_dir / name).unlink(missing_ok=True)
+        qa.update(status="failed", feature_count_output=0, errors=[f"output cannot be written: {exc}"])
+        (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
+        print(f"ERROR: output cannot be written: {exc}", file=sys.stderr)
+        return 1
     print(f"Pipeline passed: {len(normalized['features'])} features; publication remains unauthorized.")
     return 0
 
