@@ -45,7 +45,10 @@ def layer_metadata_url(value: Any, expected_layer_id: Any = None) -> tuple[str |
     expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
     if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
         return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
-    path_layer_id = int(parsed.path[len(expected_prefix):])
+    try:
+        path_layer_id = int(parsed.path[len(expected_prefix):])
+    except ValueError:
+        return None, "invalid numeric layer id; refusing network request"
     if expected_layer_id is not None and (not isinstance(expected_layer_id, int) or isinstance(expected_layer_id, bool) or path_layer_id != expected_layer_id):
         return None, "registered layer_id does not match the layer URL; refusing network request"
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
@@ -65,7 +68,7 @@ def summarize_metadata(payload: Any) -> dict[str, Any]:
     # A metadata endpoint returning feature payloads is unexpected and must fail closed.
     if "features" in payload:
         raise ValueError("response unexpectedly contains feature records; refusing to treat it as metadata")
-    if not isinstance(payload.get("id"), int) or not isinstance(payload.get("name"), str) or not payload["name"].strip():
+    if not isinstance(payload.get("id"), int) or isinstance(payload.get("id"), bool) or not isinstance(payload.get("name"), str) or not payload["name"].strip():
         raise ValueError("response lacks a valid layer id or name")
     fields = payload.get("fields", [])
     if not isinstance(fields, list) or any(not isinstance(field, dict) or not isinstance(field.get("name"), str) for field in fields):
