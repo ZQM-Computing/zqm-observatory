@@ -133,6 +133,9 @@ def validate_product(path: Path) -> list[str]:
         url = source.get("url")
         try:
             parsed_url = urlsplit(url) if isinstance(url, str) else None
+            if parsed_url is not None:
+                # Accessing port checks numeric syntax and range.
+                _ = parsed_url.port
             valid_url = parsed_url is not None and parsed_url.scheme == "https" and bool(parsed_url.hostname)
         except ValueError:
             valid_url = False

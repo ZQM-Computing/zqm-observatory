@@ -118,6 +118,20 @@ class ProductValidationTests(unittest.TestCase):
                 errors = validate_product(product_dir)
                 self.assertTrue(any("url must be an HTTPS URL" in error for error in errors), errors)
 
+    def test_source_urls_validate_explicit_ports(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        for port, valid in (("invalid", False), ("65536", False), ("-1", False), ("443", True), ("8443", True)):
+            with self.subTest(port=port):
+                sources[0]["url"] = f"https://example.gov:{port}/dataset"
+                path.write_text(json.dumps(sources), encoding="utf-8")
+                errors = validate_product(product_dir)
+                if valid:
+                    self.assertEqual(errors, [])
+                else:
+                    self.assertTrue(any("url must be an HTTPS URL" in error for error in errors), errors)
+
     def test_private_or_identifying_data_flags_fail(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"
