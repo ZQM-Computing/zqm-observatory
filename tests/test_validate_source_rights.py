@@ -51,6 +51,25 @@ class SourceRightsValidatorTests(unittest.TestCase):
         source["permitted_uses"]["public_display"] = True
         self.assertTrue(any("INTERNAL_ONLY cannot permit" in error for error in validate_document(document)))
 
+    def test_internal_only_requires_explicit_non_public_permission(self):
+        for grant in (None, False, "automated_capture", "transformation", "spatial_join"):
+            with self.subTest(grant=grant):
+                document = copy.deepcopy(REGISTER)
+                source = document["sources"][0]
+                source["decision"] = "INTERNAL_ONLY"
+                source["terms_url"] = "https://example.gov/terms"
+                source["terms_evidence"] = ["captured terms evidence"]
+                source["required_attribution"] = "Example source"
+                source["unresolved_questions"] = []
+                source["permitted_uses"] = {key: None for key in source["permitted_uses"]}
+                if isinstance(grant, str):
+                    source["permitted_uses"][grant] = True
+                    self.assertEqual(validate_document(document), [])
+                else:
+                    source["permitted_uses"] = {key: grant for key in source["permitted_uses"]}
+                    self.assertTrue(any("INTERNAL_ONLY requires at least one explicitly permitted non-public use"
+                                        in error for error in validate_document(document)))
+
     def test_invalid_url_is_rejected(self):
         document = copy.deepcopy(REGISTER)
         document["sources"][0]["service_url"] = "http://example.gov/data"

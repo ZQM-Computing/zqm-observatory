@@ -121,6 +121,8 @@ def validate_document(document: Any) -> list[str]:
                 errors.append(f"{label}: conditional approval must identify at least one explicitly permitted use")
             if decision == "INTERNAL_ONLY" and any(uses.get(use) is True for use in PUBLIC_USES):
                 errors.append(f"{label}: INTERNAL_ONLY cannot permit public display or redistribution")
+            if decision == "INTERNAL_ONLY" and not any(uses.get(use) is True for use in USES - PUBLIC_USES):
+                errors.append(f"{label}: INTERNAL_ONLY requires at least one explicitly permitted non-public use; unknown is not permission")
         if decision == "BLOCKED_PENDING_REVIEW" and (not isinstance(source["unresolved_questions"], list) or not source["unresolved_questions"]):
             errors.append(f"{label}: blocked source must state unresolved questions")
         if decision == "REJECTED" and (not isinstance(source["unresolved_questions"], list) or not source["unresolved_questions"]):
