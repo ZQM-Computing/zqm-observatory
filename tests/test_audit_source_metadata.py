@@ -2,6 +2,7 @@ import hashlib
 import json
 import sys
 import unittest
+from http.client import IncompleteRead
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -60,6 +61,48 @@ class MetadataPreflightTests(unittest.TestCase):
         ):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(layer_metadata_url(invalid)[0])
+
+    def test_non_ascii_and_empty_layer_ids_are_skipped_without_request(self):
+        prefix = "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+        for suffix in ("", "²", "٣", "３", "3²", "32/query"):
+            with self.subTest(suffix=suffix):
+                opener = FakeOpener(FakeResponse(b"{}"))
+                result = capture_one({"service_url": prefix + suffix}, opener=opener)
+                self.assertEqual(result["status"], "SKIPPED")
+                self.assertIsNone(opener.request)
+
+    def test_capture_rejects_wrong_layer_and_invalid_id_types(self):
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        for layer_id in (4, "32", None):
+            with self.subTest(layer_id=layer_id):
+                raw = json.dumps({"id": layer_id, "name": "Trails", "fields": []}).encode()
+                result = capture_one(source, opener=FakeOpener(FakeResponse(raw)))
+                self.assertEqual(result["status"], "ERROR")
+                self.assertNotIn("metadata", result)
+                self.assertNotIn("collection_gate", result)
+                self.assertIn("layer id", result["reason"])
+
+    def test_protocol_failure_is_reported_and_remaining_sources_complete(self):
+        class TruncatedResponse(FakeResponse):
+            def read(self, limit=-1):
+                raise IncompleteRead(b"partial", 20)
+
+        class SequenceOpener:
+            def __init__(self):
+                self.responses = iter([
+                    TruncatedResponse(b""),
+                    FakeResponse(b'{"id":32,"name":"Trails","fields":[]}'),
+                ])
+
+            def open(self, request, timeout):
+                return next(self.responses)
+
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        report = build_report({"sources": [source, source]}, opener=SequenceOpener())
+        self.assertEqual(report["counts"]["errors"], 1)
+        self.assertEqual(report["counts"]["ok"], 1)
+        self.assertIn("request failed", report["sources"][0]["reason"])
+        self.assertEqual(json.loads(json.dumps(report))["sources"][1]["status"], "OK")
 
     def test_metadata_summary_never_accepts_feature_payload(self):
         with self.assertRaisesRegex(ValueError, "feature records"):

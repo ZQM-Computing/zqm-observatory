@@ -17,6 +17,13 @@ The command writes a timestamped JSON report with HTTP status, content type, byt
 - Non-layer sources such as the VOTRAN document index are skipped without a network request.
 - Unexpected feature payloads, malformed metadata, non-JSON responses, and oversized responses fail closed.
 - The report repeats the source's current rights decision. It cannot approve collection, establish a license, or authorize publication.
-- No data rows, attachments, GTFS archives, or bulk datasets are downloaded.
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:fb9bda4a3c03cf073fafd75958a2205c1bc38e9e01105ac1b44ee7c9b69ee352 -->
+
+- Requests do not ask for feature records, attachments, GTFS archives, or bulk datasets.
+  Unexpected responses containing a `features` member are rejected after the bounded response is read.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 This is a bounded metadata reconnaissance aid, not a replacement for source-specific terms review, field-level data QA, privacy review, or field verification. Never commit credentials or unreviewed data captures.

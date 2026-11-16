@@ -12,6 +12,7 @@ import hashlib
 import json
 import sys
 from datetime import datetime, timezone
+from http.client import HTTPException
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -40,7 +41,8 @@ def layer_metadata_url(value: Any) -> tuple[str | None, str | None]:
     except ValueError:
         return None, "malformed URL or port"
     expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
-    if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
+    suffix = parsed.path[len(expected_prefix):]
+    if not parsed.path.startswith(expected_prefix) or not (suffix.isascii() and suffix.isdigit()):
         return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
     if parsed.scheme != "https" or parsed.hostname not in ALLOWED_HOSTS:
         return None, "host or scheme is outside the metadata preflight allowlist"
@@ -130,7 +132,11 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         result["response_sha256"] = hashlib.sha256(raw).hexdigest()
         try:
             payload = json.loads(raw.decode("utf-8"))
-            result["metadata"] = summarize_metadata(payload)
+            metadata = summarize_metadata(payload)
+            requested_layer_id = int(urlparse(url).path.rsplit("/", 1)[1])
+            if metadata["layer_id"] != requested_layer_id:
+                raise ValueError("response layer id does not match requested layer id")
+            result["metadata"] = metadata
         except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
             result.update(status="ERROR", reason=f"invalid layer metadata: {exc}")
             return result
@@ -142,7 +148,7 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         return result
     except HTTPError as exc:
         result.update(status="ERROR", http_status=exc.code, reason=f"HTTP error {exc.code}")
-    except (URLError, TimeoutError, OSError) as exc:
+    except (URLError, TimeoutError, OSError, HTTPException) as exc:
         result.update(status="ERROR", reason=f"request failed: {exc}")
     return result
 
