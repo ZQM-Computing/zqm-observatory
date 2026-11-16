@@ -85,7 +85,7 @@ def validate_product(path: Path) -> list[str]:
         try:
             resolved = candidate.resolve(strict=False)
             resolved.relative_to(path.resolve())
-        except (OSError, ValueError):
+        except (OSError, ValueError, RuntimeError):
             errors.append(f"{path}/product.json: data file escapes product directory: {item}")
             continue
         if not candidate.is_file():
@@ -132,7 +132,10 @@ def validate_product(path: Path) -> list[str]:
             if not isinstance(source.get(key), str) or not source[key].strip():
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
-        parsed_url = urlparse(url) if isinstance(url, str) else None
+        try:
+            parsed_url = urlparse(url) if isinstance(url, str) else None
+        except ValueError:
+            parsed_url = None
         if (
             parsed_url is None
             or parsed_url.scheme != "https"

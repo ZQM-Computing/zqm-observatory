@@ -18,8 +18,7 @@ class ProductValidationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def make_product(self) -> Path:
-        folder = "2026-10-25-volusia-community-brief"
+    def make_product(self, folder: str = "2026-10-25-volusia-community-brief") -> Path:
         product_dir = self.data / folder
         product_dir.mkdir()
         product = {
@@ -96,6 +95,43 @@ class ProductValidationTests(unittest.TestCase):
         path.write_text(json.dumps(sources), encoding="utf-8")
         errors = validate_product(product_dir)
         self.assertTrue(any("valid HTTPS URL" in error for error in errors))
+
+    def test_malformed_url_reports_errors_and_checks_later_bundles(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        sources[0]["url"] = "https://["
+        sources[0]["retrieval_date"] = "invalid"
+        path.write_text(json.dumps(sources), encoding="utf-8")
+        later = self.make_product("2026-10-25-z-later-brief")
+        (later / "brief.csv").unlink()
+
+        errors = validate_data_dir(self.data)
+
+        self.assertIn(
+            f"{path} entry 1: url must be a valid HTTPS URL with a hostname and no embedded credentials",
+            errors,
+        )
+        self.assertIn(f"{path} entry 1: retrieval_date must be YYYY-MM-DD", errors)
+        self.assertIn(f"{later}/product.json: listed data file does not exist: brief.csv", errors)
+
+    def test_symlink_loop_in_parent_returns_asset_error(self) -> None:
+        product_dir = self.make_product()
+        (product_dir / "loop").symlink_to("loop")
+        candidate = product_dir / "loop" / "brief.csv"
+        self.assertFalse(candidate.is_symlink())
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        product["data_files"] = ["loop/brief.csv"]
+        path.write_text(json.dumps(product), encoding="utf-8")
+
+        errors = validate_product(product_dir)
+
+        self.assertEqual(len(errors), 1)
+        self.assertIn(errors[0], (
+            f"{path}: data file escapes product directory: loop/brief.csv",
+            f"{path}: listed data file does not exist: loop/brief.csv",
+        ))
 
     def test_duplicate_declared_sources_fail(self) -> None:
         product_dir = self.make_product()
