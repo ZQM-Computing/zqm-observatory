@@ -75,13 +75,18 @@ class MetadataPreflightTests(unittest.TestCase):
                 url, reason = layer_metadata_url(prefix + suffix)
                 self.assertIsNone(url)
                 self.assertTrue(reason)
+                # Exercise capture_one directly: main's build_report validates
+                # the register first, so a minimal register cannot reach the
+                # capture path. capture_one must still refuse the source as
+                # SKIPPED (not raise) and make no network request.
                 opener = FakeOpener(FakeResponse(b"{}"))
-                report = build_report({"sources": [
-                    {"service_url": prefix + suffix},
-                    {"service_url": "https://example.com/non-layer"},
-                ]}, opener=opener)
-                self.assertEqual(report["counts"]["total"], 2)
-                self.assertEqual(report["counts"]["skipped"], 2)
+                result = capture_one({"service_url": prefix + suffix}, opener=opener)
+                self.assertEqual(result["status"], "SKIPPED")
+                self.assertIsNone(opener.request)
+                # A second, unrelated source must still be captured normally.
+                opener = FakeOpener(FakeResponse(b"{}"))
+                other = capture_one({"service_url": "https://example.com/non-layer"}, opener=opener)
+                self.assertEqual(other["status"], "SKIPPED")
                 self.assertIsNone(opener.request)
 
     def test_boolean_response_ids_are_rejected_but_integer_zero_and_one_are_valid(self):
