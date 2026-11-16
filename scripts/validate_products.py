@@ -14,6 +14,7 @@ import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 PRODUCT_DIR = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 PRODUCT_REQUIRED = {
@@ -49,6 +50,10 @@ def validate_product(path: Path) -> list[str]:
         errors.append(f"{path}: directory must be named YYYY-MM-DD-lowercase-slug")
     product = read_json(path / "product.json", errors)
     sources = read_json(path / "sources.json", errors)
+    if not isinstance(product, dict):
+        errors.append(f"{path}/product.json: must be an object")
+    if not isinstance(sources, list):
+        errors.append(f"{path}/sources.json: must be a list")
     if not isinstance(product, dict) or not isinstance(sources, list):
         return errors
 
@@ -76,7 +81,13 @@ def validate_product(path: Path) -> list[str]:
             errors.append(f"{path}/product.json: unsafe data_files entry: {item!r}")
             continue
         candidate = path / item
-        if not candidate.is_file():
+        try:
+            contained = candidate.resolve().is_relative_to(path.resolve())
+        except (OSError, RuntimeError):
+            contained = False
+        if not contained:
+            errors.append(f"{path}/product.json: data file must resolve inside bundle: {item}")
+        elif not candidate.is_file():
             errors.append(f"{path}/product.json: listed data file does not exist: {item}")
 
     field = product.get("field_verification")
@@ -120,7 +131,12 @@ def validate_product(path: Path) -> list[str]:
             if not isinstance(source.get(key), str) or not source[key].strip():
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
-        if not isinstance(url, str) or not url.startswith("https://") or any(ch.isspace() for ch in url):
+        try:
+            parsed_url = urlsplit(url) if isinstance(url, str) else None
+            valid_url = parsed_url is not None and parsed_url.scheme == "https" and bool(parsed_url.hostname)
+        except ValueError:
+            valid_url = False
+        if not valid_url or any(ch.isspace() for ch in url):
             errors.append(f"{label}: url must be an HTTPS URL")
         if not is_iso_date(source.get("retrieval_date")):
             errors.append(f"{label}: retrieval_date must be YYYY-MM-DD")

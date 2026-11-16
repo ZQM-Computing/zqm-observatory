@@ -70,6 +70,54 @@ class ProductValidationTests(unittest.TestCase):
         errors = validate_product(product_dir)
         self.assertTrue(any("listed data file does not exist" in error for error in errors))
 
+    def test_incorrect_top_level_types_fail(self) -> None:
+        product_dir = self.make_product()
+        product_path = product_dir / "product.json"
+        sources_path = product_dir / "sources.json"
+        original_product = product_path.read_text(encoding="utf-8")
+        for product, sources, expected in (
+            ("null", "[]", ["product.json: must be an object"]),
+            (original_product, "{}", ["sources.json: must be a list"]),
+            ("[]", "null", ["product.json: must be an object", "sources.json: must be a list"]),
+        ):
+            with self.subTest(product=product, sources=sources):
+                product_path.write_text(product, encoding="utf-8")
+                sources_path.write_text(sources, encoding="utf-8")
+                errors = validate_product(product_dir)
+                for message in expected:
+                    self.assertTrue(any(message in error for error in errors), errors)
+
+    def test_asset_symlink_must_stay_inside_bundle(self) -> None:
+        product_dir = self.make_product()
+        asset = product_dir / "brief.csv"
+        internal = product_dir / "original.csv"
+        asset.rename(internal)
+        asset.symlink_to(internal.name)
+        self.assertEqual(validate_product(product_dir), [])
+        asset.unlink()
+        outside = self.root / "outside.csv"
+        outside.write_text("id,value\n1,outside\n", encoding="utf-8")
+        asset.symlink_to(outside)
+        errors = validate_product(product_dir)
+        self.assertTrue(any("data file must resolve inside bundle" in error for error in errors), errors)
+        asset.unlink()
+        linked_dir = product_dir / "linked"
+        linked_dir.symlink_to(self.root, target_is_directory=True)
+        asset.symlink_to("linked/outside.csv")
+        errors = validate_product(product_dir)
+        self.assertTrue(any("data file must resolve inside bundle" in error for error in errors), errors)
+
+    def test_source_urls_require_https_and_hostname(self) -> None:
+        product_dir = self.make_product()
+        path = product_dir / "sources.json"
+        sources = json.loads(path.read_text(encoding="utf-8"))
+        for url in ("https://", "https:///dataset", "https://[broken", "http://example.gov", "https://example.gov/a b", None):
+            with self.subTest(url=url):
+                sources[0]["url"] = url
+                path.write_text(json.dumps(sources), encoding="utf-8")
+                errors = validate_product(product_dir)
+                self.assertTrue(any("url must be an HTTPS URL" in error for error in errors), errors)
+
     def test_private_or_identifying_data_flags_fail(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"
