@@ -104,7 +104,7 @@ def validate_product(path: Path) -> list[str]:
     # or be one of the three standard metadata/method files. This prevents an
     # unlisted sidecar from bypassing review and publication inventory.
     declared_files = {
-        item for item in data_files
+        Path(item).as_posix() for item in data_files
         if isinstance(item, str) and item and not Path(item).is_absolute()
         and ".." not in Path(item).parts
     }

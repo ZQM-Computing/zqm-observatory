@@ -64,6 +64,20 @@ class ProductValidationTests(unittest.TestCase):
         product_dir = self.make_product()
         self.assertEqual(validate_product(product_dir), [])
 
+    def test_normalized_declared_paths_pass_structural_gate(self) -> None:
+        product_dir = self.make_product()
+        nested = product_dir / "supporting"
+        nested.mkdir()
+        (nested / "extra.csv").write_text("id,value\n1,example\n", encoding="utf-8")
+        path = product_dir / "product.json"
+        product = json.loads(path.read_text(encoding="utf-8"))
+        for declaration in ("./brief.csv", "supporting//extra.csv"):
+            with self.subTest(declaration=declaration):
+                product["data_files"] = ["brief.csv", "supporting/extra.csv"]
+                product["data_files"][0 if declaration.startswith(".") else 1] = declaration
+                path.write_text(json.dumps(product), encoding="utf-8")
+                self.assertEqual(validate_product(product_dir), [])
+
     def test_missing_data_file_fails(self) -> None:
         product_dir = self.make_product()
         (product_dir / "brief.csv").unlink()
