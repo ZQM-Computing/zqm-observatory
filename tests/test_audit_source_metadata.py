@@ -68,6 +68,46 @@ class MetadataPreflightTests(unittest.TestCase):
             with self.subTest(invalid=invalid):
                 self.assertIsNone(layer_metadata_url(invalid)[0])
 
+    def test_unconvertible_layer_suffixes_are_refused_without_aborting_report(self):
+        prefix = "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+        for suffix in ("²", "9" * 4301):
+            with self.subTest(suffix_length=len(suffix)):
+                url, reason = layer_metadata_url(prefix + suffix)
+                self.assertIsNone(url)
+                self.assertTrue(reason)
+                # Exercise capture_one directly: main's build_report validates
+                # the register first, so a minimal register cannot reach the
+                # capture path. capture_one must still refuse the source as
+                # SKIPPED (not raise) and make no network request.
+                opener = FakeOpener(FakeResponse(b"{}"))
+                result = capture_one({"service_url": prefix + suffix}, opener=opener)
+                self.assertEqual(result["status"], "SKIPPED")
+                self.assertIsNone(opener.request)
+                # A second, unrelated source must still be captured normally.
+                opener = FakeOpener(FakeResponse(b"{}"))
+                other = capture_one({"service_url": "https://example.com/non-layer"}, opener=opener)
+                self.assertEqual(other["status"], "SKIPPED")
+                self.assertIsNone(opener.request)
+
+    def test_boolean_response_ids_are_rejected_but_integer_zero_and_one_are_valid(self):
+        prefix = "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+        for expected_id in (0, 1):
+            for response_id in (bool(expected_id), expected_id):
+                with self.subTest(expected_id=expected_id, response_id=response_id):
+                    payload = {"id": response_id, "name": "Layer", "fields": []}
+                    source = {"service_url": prefix + str(expected_id), "layer_id": expected_id}
+                    result = capture_one(source, opener=FakeOpener(
+                        FakeResponse(json.dumps(payload).encode())
+                    ))
+                    if isinstance(response_id, bool):
+                        with self.assertRaisesRegex(ValueError, "layer id or name"):
+                            summarize_metadata(payload)
+                        self.assertEqual(result["status"], "ERROR")
+                        self.assertNotIn("metadata", result)
+                    else:
+                        self.assertEqual(result["status"], "OK")
+                        self.assertEqual(result["metadata"]["layer_id"], expected_id)
+
     def test_metadata_summary_never_accepts_feature_payload(self):
         with self.assertRaisesRegex(ValueError, "feature records"):
             summarize_metadata({"features": [{"attributes": {"id": 1}}]})
