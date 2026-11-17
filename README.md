@@ -32,10 +32,10 @@ patterns, backups, offline behavior, privacy, and limits. The [verification
 record](apps/map-explain/QA.md) separates local results, browser observations,
 remaining device checks, and GitHub CI status.
 
-The affected build-dependency chain has been removed; clean Windows CI and its
-full dependency audit must verify the remediation before merge/release.
-See the [dated audit record](docs/dependency-audit-2026-11-17.md) for evidence
-and reproduction commands.
+The affected build-dependency chain has been removed. A clean hosted Windows
+run passed all workspace checks and the full audit with zero vulnerabilities.
+See the [dated audit record](docs/dependency-audit-2026-11-17.md) for evidence,
+reproduction commands, and the retained security gate.
 
 ## Integrated Observatory workspaces
 

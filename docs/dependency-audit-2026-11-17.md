@@ -1,9 +1,9 @@
 # Frontend dependency audit — November 17, 2026
 
-**Status: remediation implemented; clean-install/full-audit CI verification pending.**
-The existing high-severity merge/release gate remains in force. This record
-preserves the original finding and tracks its remediation. No audit exclusions
-or dependency downgrades are used.
+**Status: resolved in this repository; clean Windows full audit reports zero vulnerabilities.**
+The affected dependency chain is removed. The existing high-severity merge/release
+gate remains in force. This record preserves the original finding and its
+verified remediation. No audit exclusions or dependency downgrades are used.
 
 Before remediation, `npm audit --audit-level=high` reported four high-severity dependency entries from
 one advisory, [GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf)
@@ -33,6 +33,10 @@ npm audit --omit=dev
 npm ls picomatch fdir tinyglobby vite --all
 ```
 
+The last command is expected to show an empty tree after remediation; npm exits
+nonzero when no requested package is installed. The full audit includes build
+dependencies, rather than relying on the runtime-only result.
+
 ## Remediation and runner evidence
 
 The app now uses its existing Rolldown 1.2.19 backend directly and Lightning CSS
@@ -58,5 +62,20 @@ upload checks. Browser QA verified the new assets, five panels, the expected
 synthetic question result, retained local records and reload with the origin
 stopped. The original source/publication gates remain unchanged.
 
-A clean Windows locked install and `npm audit --audit-level=high` must complete
-successfully before merge/release. No production deployment is included.
+## Verified result
+
+The [clean hosted Windows run](https://github.com/ZQM-Computing/zqm-observatory/actions/runs/44193136585)
+at `f5061328ebf65108e37237aaeac9f16ba4d98fb6` passed every step:
+
+- `npm ci --ignore-scripts --no-audit --no-fund`.
+- 85 app/tooling tests and the TypeScript/production build.
+- `npm audit --audit-level=high`: **found 0 vulnerabilities**.
+- Locked GIS dependencies, 17 Python service tests and real client/proxy/service
+  sync with lost-reply retry, later edits and the full 8,000,000-byte document.
+- Isolated checkout cleanup. Prose CI passed separately.
+
+The remediation source is preserved in the linked commit. Its parent,
+`2f7cfa2b93b82e260fa3cc2407c1a58b3f807da7`, preserves the runner repair and the
+previous dependency graph for comparison. Restoring that graph restores the
+known audit failure; the full gate still applies. No production state or real
+source data was changed.

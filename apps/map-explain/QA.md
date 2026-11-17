@@ -12,13 +12,15 @@ behavior, not real-world facts, source rights, or publication approval.
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
 | Private-service/GIS tests | 17 passed, none skipped |
 | Optional client/service integration | Passed through the new same-origin development proxy with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
-| Frontend dependency audit | Affected dependency chain removed; fresh locked Windows install and full audit pending |
+| Frontend dependency audit | Passed after clean Windows locked install: 0 vulnerabilities; affected dependency chain removed |
 | Existing Observatory governance tests | 167 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
 
 The [dependency audit record](../../docs/dependency-audit-2026-11-17.md) records the
-original failure and remediation. Functional test/build success does not clear the
-security gate; the durable-sync PR remains a draft pending clean CI verification.
+original failure and remediation. The [clean Windows run](https://github.com/ZQM-Computing/zqm-observatory/actions/runs/44193136585)
+at `f5061328ebf65108e37237aaeac9f16ba4d98fb6` passed the locked install, all
+85 tests, production build, unchanged full audit gate, 17 service tests and real
+client/proxy/service integration. Prose CI passed separately.
 
 Core checks include known geodesic distance, threshold/weight semantics, strict
 query rejection, layer-name escaping and overlap, Polygon holes, known Mercator
@@ -42,7 +44,8 @@ passed on Node 22.23.5. CI now uses standard hosted Windows 2022 for this public
 repository, retaining the same-repository trust guard and read-only permissions.
 A private repository falls back to the existing self-hosted Windows pool.
 The first hosted run reached the full audit and reproduced the dependency failure,
-confirming that runner routing works. CI remains separate from local evidence.
+confirming that runner routing works. The subsequent remediation run passed all
+steps. CI remains separate from local evidence; neither proves deployment.
 
 ## Observed desktop workflows
 
@@ -188,6 +191,9 @@ retains its license. Seven new test groups cover deterministic hashed output and
 precache completeness, safe build destinations, CSS import boundaries/cycles,
 offline API exclusion and shell fallback, static preview safety, and same-origin
 proxy forwarding/failure behavior. The real 8 MB sync check also uses the proxy.
+The development CLI was also started on a temporary port: the hashed application
+and external reload script loaded, and a disconnected private service returned a
+JSON 502 rather than HTML or internal error details.
 
 Desktop browser QA rendered all five workspace panels, ran the distance question
 with the expected eight synthetic results, and preserved the existing four-layer,
