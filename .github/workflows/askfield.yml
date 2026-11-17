@@ -1,0 +1,51 @@
+name: AskField validation
+
+on:
+  pull_request:
+    paths: ["apps/askfield/**", ".github/workflows/askfield.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/askfield/**", ".github/workflows/askfield.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: askfield-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    # Self-hosted execution is restricted to trusted, same-repository code.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/apps/askfield
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          path: source-${{ github.run_id }}-${{ github.run_attempt }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run GIS, upload, and export regression tests
+        run: npm test
+      - name: Check TypeScript and build the standalone demo
+        run: npm run build
+      - name: Audit dependency vulnerabilities
+        run: npm audit --audit-level=high
+      - name: Clean isolated checkout
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          $checkout = Join-Path $env:GITHUB_WORKSPACE 'source-${{ github.run_id }}-${{ github.run_attempt }}'
+          if (Test-Path -LiteralPath $checkout) {
+            Remove-Item -LiteralPath $checkout -Recurse -Force
+          }
