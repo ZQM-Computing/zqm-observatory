@@ -123,6 +123,27 @@ class ServiceTests(unittest.TestCase):
         body["document"]["name"] = "Different"
         self.assertEqual(self.call("/api/projects/test-project",body,"PUT")[0],400)
 
+    def test_unpaired_surrogates_round_trip_and_legacy_documents_remain_readable(self):
+        doc = document()
+        doc["layers"][0]["name"] = "a" * 109 + "\ud83d"
+        doc["layers"][0]["features"][0]["properties"]["low_\udc00"] = "Café 😀"
+        body = {"document":doc,"expected_revision":0,"operation_id":"surrogate-save"}
+        request = Request(self.url + "/api/projects/test-project", data=json.dumps(body, ensure_ascii=True).encode(), method="PUT", headers={"Authorization":"Bearer " + TOKEN,"Content-Type":"application/json"})
+        with urlopen(request, timeout=5) as response:
+            self.assertEqual(response.status, 200)
+            raw = response.read()
+        self.assertIn(b"\\ud83d", raw); self.assertIn(b"\\udc00", raw)
+        self.assertIn("Café 😀".encode(), raw)
+        self.assertEqual(json.loads(raw)["document"], doc)
+        self.assertEqual(json.loads(self.call("/api/projects/test-project")[1])["document"], doc)
+        # Documents persisted by the earlier ASCII serializer still load.
+        with self.store.connect() as db:
+            db.execute("UPDATE projects SET document=? WHERE id=?",(json.dumps(doc, ensure_ascii=True),"test-project"))
+        status, raw, _ = self.call("/api/projects/test-project")
+        self.assertEqual(status, 200); self.assertEqual(json.loads(raw)["document"], doc)
+        with urlopen(request, timeout=5) as response:
+            self.assertEqual(json.loads(response.read())["revision"], 1)
+
     def test_database_context_rolls_back_and_closes_its_handle(self):
         self.store.put("test-project",0,"initial",document())
         with self.assertRaises(RuntimeError):

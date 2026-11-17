@@ -20,7 +20,10 @@ IDENTITY = re.compile(r"^[a-zA-Z0-9_-]{1,80}$")
 
 
 def canonical(value):
-    return json.dumps(value, separators=(",", ":"), sort_keys=True, allow_nan=False, ensure_ascii=False)
+    serialized = json.dumps(value, separators=(",", ":"), sort_keys=True, allow_nan=False, ensure_ascii=False)
+    # JSON.stringify preserves lone UTF-16 surrogates as escapes. Keep those
+    # browser documents readable while ordinary Unicode retains its UTF-8 size.
+    return serialized.encode("utf-8", errors="backslashreplace").decode("utf-8")
 
 
 def safe_json(value, depth=0):

@@ -52,7 +52,8 @@ are rejected. Authentication is checked before body processing.
 
 SQLite read/compare/write uses `BEGIN IMMEDIATE`. Only one writer can advance a
 revision. Project sizes and response bodies use UTF-8 JSON so non-ASCII text does not
-consume an inflated ASCII-escape budget. Operation receipts written by the prior
+consume an inflated ASCII-escape budget; lone UTF-16 surrogates retain valid JSON
+escapes for compatibility with browser documents. Operation receipts written by the prior
 ASCII-escaped format remain valid for identical retries. Database contexts always
 close their handles after commit or rollback.
 
