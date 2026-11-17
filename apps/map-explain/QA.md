@@ -8,7 +8,7 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 63 passed, none skipped; includes recovery and IndexedDB transaction regressions |
+| TypeScript/core regression tests | 64 passed, none skipped; includes recovery and IndexedDB transaction regressions |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
 | Private-service/GIS tests | 16 passed, none skipped |
 | Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
@@ -114,10 +114,11 @@ between features retained original demand values 42 and 18.
 ## Project replacement recovery — November 17, 2026
 
 Opening another project archives the replaced document in the same IndexedDB
-transaction. Twelve additional regression groups cover immutable copies,
+transaction. Thirteen additional regression groups cover immutable copies,
 three-copy/12 MB pruning, Unicode byte sizes, fresh recovery identities, 8 MB
 boundary behavior, invalid recovery metadata, ordinary saves, competing tab
-replacements, write/deletion rollback, revision-guarded deletion, and full clear.
+replacements, synchronous/asynchronous write and deletion rollback,
+revision-guarded deletion, and full clear.
 A pinned development-only IndexedDB implementation runs these storage tests in
 Node; it is not included in the production bundle.
 

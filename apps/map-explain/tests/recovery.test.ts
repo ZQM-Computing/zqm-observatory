@@ -216,6 +216,29 @@ test("a failed replacement rolls back the recovery copy and active document toge
   assert.deepEqual(await loadRecoveryCopies(), copies);
 });
 
+test("an asynchronous storage error rolls back the active document and recovery write", async (t) => {
+  const initial = demoState();
+  await saveLocal(initial, null);
+  const put = IDBObjectStore.prototype.put;
+  t.mock.method(
+    IDBObjectStore.prototype,
+    "put",
+    function (this: IDBObjectStore, value: unknown, key?: IDBValidKey) {
+      // Adding the already-present active key fails asynchronously, after the
+      // earlier recovery write has been queued in the same transaction.
+      if (key === "active") return this.add(value, key);
+      return put.call(this, value, key);
+    },
+  );
+  await assert.rejects(
+    saveLocal(replacement(initial, "Must roll back"), initial.revision, {
+      archiveReason: "Asynchronous failure",
+    }),
+  );
+  assert.deepEqual(await loadLocal(), initial);
+  assert.deepEqual(await loadRecoveryCopies(), []);
+});
+
 test("recovery deletion observes the revision guard and keeps the active project", async () => {
   const initial = demoState();
   await saveLocal(initial, null);
