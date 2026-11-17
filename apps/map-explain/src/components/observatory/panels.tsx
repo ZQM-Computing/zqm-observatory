@@ -909,9 +909,15 @@ export function MapPanel({
     [featureName, setFeatureName] = useState(""),
     [comment, setComment] = useState(""),
     [author, setAuthor] = useState(""),
-    [attributes, setAttributes] = useState("");
+    [attributes, setAttributes] = useState<{
+      target: string;
+      text: string;
+    } | null>(null);
   const layer = project.layers.find((l) => l.id === selection?.layerId),
     feature = layer?.features.find((f) => f.id === selection?.featureId);
+  const attributeTarget = JSON.stringify([layer?.id, feature?.id]);
+  const attributeText =
+    attributes?.target === attributeTarget ? attributes.text : "";
   function finish() {
     return perform(async () => {
       if (draw === "none" || !featureName.trim())
@@ -1142,29 +1148,41 @@ export function MapPanel({
             <summary>Edit attributes</summary>
             <button
               onClick={() =>
-                setAttributes(JSON.stringify(feature.properties, null, 2))
+                setAttributes({
+                  target: attributeTarget,
+                  text: JSON.stringify(feature.properties, null, 2),
+                })
               }
             >
               Load current attributes
             </button>
             <Field label="Attribute JSON">
               <textarea
-                value={attributes}
-                onChange={(e) => setAttributes(e.target.value)}
+                value={attributeText}
+                onChange={(e) =>
+                  setAttributes({
+                    target: attributeTarget,
+                    text: e.target.value,
+                  })
+                }
               />
             </Field>
             <button
-              disabled={busy || !attributes}
+              disabled={busy || !attributeText}
               onClick={() =>
                 perform(async () => {
-                  const props = JSON.parse(attributes);
+                  if (!attributes || attributes.target !== attributeTarget)
+                    throw new Error(
+                      "Reload attributes for the selected feature before saving.",
+                    );
+                  const props = JSON.parse(attributes.text);
                   await commit(`Edited ${label(feature)}`, (p) => {
                     p.layers
                       .find((l) => l.id === layer.id)!
                       .features.find((f) => f.id === feature.id)!.properties =
                       props;
                   });
-                  setAttributes("");
+                  setAttributes(null);
                 })
               }
             >

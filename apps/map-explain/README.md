@@ -35,6 +35,9 @@ production bundle; its static preview has no private API proxy.
 | Coverage Analysis | Demand/supply layers, radius, demand weights, configurable scoring weights, complete ranked output, saved supply scenarios and transparent formula |
 | Map Workspace | Layer visibility/color, attribute text display filter, point/line/polygon drawing, attribute edits, review notes, deletion with local restoration, CSV/GeoJSON exports |
 
+Attribute drafts are bound to the selected layer and feature. Switching features
+requires loading or entering that feature’s attributes before saving.
+
 All five use the same project layers. Prepared data and field observations can
 feed questions and coverage. Drawn sites can form a new supply scenario. Saving
 an analysis turns it into another project layer with input-source lineage.
@@ -61,7 +64,10 @@ requests are rejected. The local parser is deterministic; it does not call an
 LLM, infer additional filters, or claim general natural-language understanding.
 Distances use spherical straight-line haversine calculations, not network travel
 time. Counts support Polygon holes; MultiPolygon counts are not implemented.
-Coverage uses actual Point geometries, never invented centroids. Overlapping
+Thresholds, units, and ranking direction come from the matched question grammar;
+words or distances inside a layer name do not change the operation. Demand scores
+normalize against the actual maximum, including fractional weights; all-zero
+demand contributes zero. Coverage uses actual Point geometries, never invented centroids. Overlapping
 zones may count points more than once; boundary semantics require review.
 
 ## Data limits and lineage
@@ -92,7 +98,8 @@ Saved documents, up to five previous local documents, and the pending-sync list
 live in IndexedDB for this origin. Records and optional photos persist across
 reloads until replaced, cleared by the user, evicted by the browser, or removed
 with browser site data. Unsaved form fields and analysis previews are not durable.
-Export a project bundle for backup. A successful save is reported only after the
+Project bundles use compact JSON so an accepted project stays within the same
+8 MB restore limit. Export a project bundle for backup. A successful save is reported only after the
 IndexedDB transaction completes; another tab cannot silently overwrite a newer
 local revision.
 
@@ -114,7 +121,9 @@ roles, per-project grants, encrypted local storage, or authoritative audit signi
 
 Conflicting server revisions produce a review step. Independent entity edits
 merge by ID; geometry arrays stay atomic. Local/shared choices are required for
-conflicting values. Applying a merge saves locally; a later push confirms a new
+conflicting values. Independent same-name layers produce a naming conflict: choose
+which side keeps the original name; both datasets remain and the other name gets
+a numbered suffix. Applying a merge saves locally; a later push confirms a new
 shared revision. Local save conflicts require reloading; unsubmitted form values
 remain visible so they can be copied before reload. Retry snapshots are reused
 within the open session, and acknowledgements preserve later queued edits.

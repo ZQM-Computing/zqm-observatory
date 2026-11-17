@@ -1,6 +1,11 @@
 import { isRecord, validateProject, type Project } from "./model.js";
 
-export type MergeConflict = { path: string; local: unknown; remote: unknown };
+export type MergeConflict = {
+  path: string;
+  local: unknown;
+  remote: unknown;
+  kind?: "layer_name";
+};
 export type Choices = Record<string, "local" | "remote">;
 const equal = (a: unknown, b: unknown) =>
   JSON.stringify(a) === JSON.stringify(b);
@@ -68,6 +73,55 @@ export function mergeProjects(
   };
   const project = merge(base, local, remote, "project") as Project;
   project.history = project.history.slice(-100);
+  // Independent imports have different IDs but can share a name. Keep both
+  // datasets and ask which side retains that name; the other gets a suffix.
+  const groups = new Map<string, Project["layers"]>();
+  for (const layer of project.layers) {
+    const name = layer.name.trim().toLowerCase();
+    groups.set(name, [...(groups.get(name) ?? []), layer]);
+  }
+  const occupied = new Set(
+    project.layers.map((l) => l.name.trim().toLowerCase()),
+  );
+  for (const [name, group] of groups) {
+    if (group.length < 2) continue;
+    const path = `project/layer_names/${encodeURIComponent(name)}`;
+    const proposal = (side: Project) => {
+      const winner =
+        group.find((l) =>
+          side.layers.some(
+            (s) => s.id === l.id && s.name.trim().toLowerCase() === name,
+          ),
+        ) ?? group[0];
+      const names = new Set(occupied);
+      return group.map((l) => {
+        let renamed = l.name;
+        if (l.id !== winner.id) {
+          let suffix = 2;
+          const stem = l.name.trim().slice(0, 110);
+          do {
+            renamed = `${stem} ${suffix++}`;
+          } while (names.has(renamed.toLowerCase()));
+          names.add(renamed.toLowerCase());
+        }
+        return { id: l.id, name: renamed };
+      });
+    };
+    const localNames = proposal(local),
+      remoteNames = proposal(remote);
+    if (!choices[path])
+      conflicts.push({
+        path,
+        local: localNames,
+        remote: remoteNames,
+        kind: "layer_name",
+      });
+    const selected = choices[path] === "remote" ? remoteNames : localNames;
+    for (const named of selected) {
+      group.find((l) => l.id === named.id)!.name = named.name;
+      occupied.add(named.name.trim().toLowerCase());
+    }
+  }
   validateProject(project);
   return { project, conflicts };
 }

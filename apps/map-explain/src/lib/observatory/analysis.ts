@@ -54,6 +54,7 @@ export function coverage(
     ![distanceWeight, demandWeight].every(
       (n) => Number.isFinite(n) && n >= 0,
     ) ||
+    !Number.isFinite(distanceWeight + demandWeight) ||
     distanceWeight + demandWeight <= 0
   )
     throw new Error("Scoring weights must be nonnegative and sum above zero.");
@@ -83,7 +84,10 @@ export function coverage(
     throw new Error(
       "Demand weights must be present, finite, and nonnegative for every demand point.",
     );
-  const max = Math.max(...values, 1);
+  const maximumDemand = Math.max(...values);
+  const max = maximumDemand > 0 ? maximumDemand : 1;
+  const distanceShare = distanceWeight / (distanceWeight + demandWeight);
+  const demandShare = demandWeight / (distanceWeight + demandWeight);
   const rows = points
     .map((point, index) => {
       const nearest = facilities
@@ -91,10 +95,9 @@ export function coverage(
         .sort((a, b) => a.meters - b.meters)[0];
       const gap = nearest.meters > radius;
       const score = gap
-        ? (100 *
-            ((distanceWeight * Math.min(nearest.meters / radius, 3)) / 3 +
-              (demandWeight * values[index]) / max)) /
-          (distanceWeight + demandWeight)
+        ? 100 *
+          ((distanceShare * Math.min(nearest.meters / radius, 3)) / 3 +
+            demandShare * (values[index] / max))
         : 0;
       return { point, nearest, gap, score, weight: values[index] };
     })
@@ -103,6 +106,7 @@ export function coverage(
     `Compared ${points.length} demand points against ${facilities.length} supply points. Nonpoint geometries were excluded explicitly.`,
     `Gap means nearest distance > ${radius} m; equality is covered.`,
     `Score = 100 × (${distanceWeight} × min(distance/radius,3)/3 + ${demandWeight} × demand/maxDemand) / ${distanceWeight + demandWeight}; covered points score zero.`,
+    "Demand normalization uses the actual maximum; when all demand values are zero, their score contribution is zero.",
   ];
   const features: Feature[] = rows.map((r) => ({
     ...structuredClone(r.point),
@@ -190,19 +194,17 @@ export function answerProject(question: string, layers: Layer[]): Analysis {
   const nearestPattern = pair.length
     ? new RegExp(`^rank ${pair[0]} (nearest|farthest) (?:to|from) ${pair[1]}$`)
     : null;
-  const distance = q.match(
-    /\b(\d+(?:\.\d+)?)\s*(km|m|meters?|kilometers?|miles?)\b/,
-  );
-  if (matched.length === 2 && distance && distancePattern?.test(q)) {
+  const distance = distancePattern?.exec(q);
+  if (matched.length === 2 && distance) {
     const meters =
-      Number(distance[1]) *
-      (distance[2].startsWith("k")
+      Number(distance[2]) *
+      (distance[3].startsWith("k")
         ? 1000
-        : distance[2].startsWith("mile")
+        : distance[3].startsWith("mile")
           ? 1609.344
           : 1);
     const result = coverage(matched[0], matched[1], meters, "", 1, 0);
-    const beyond = /beyond|more than/.test(q);
+    const beyond = distance[1] === "beyond";
     result.layer.features = result.layer.features.filter(
       (f) => f.properties.gap === beyond,
     );
@@ -255,7 +257,8 @@ export function answerProject(question: string, layers: Layer[]): Analysis {
       limitations: LIMITS,
     };
   }
-  if (matched.length === 2 && nearestPattern?.test(q)) {
+  const ranking = nearestPattern?.exec(q);
+  if (matched.length === 2 && ranking) {
     const a = pointFeatures(matched[0]),
       b = pointFeatures(matched[1]);
     if (!a.length || !b.length)
@@ -277,7 +280,7 @@ export function answerProject(question: string, layers: Layer[]): Analysis {
       .sort(
         (x, y) =>
           (Number(x.properties.nearest_m) - Number(y.properties.nearest_m)) *
-          (/farthest/.test(q) ? -1 : 1),
+          (ranking[1] === "farthest" ? -1 : 1),
       );
     const layer = makeLayer(
       `${matched[0].name} nearest ${matched[1].name}`,

@@ -8,7 +8,7 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 45 passed, none skipped; includes the latest three parent-PR fixes |
+| TypeScript/core regression tests | 49 passed, none skipped; includes the latest three parent-PR fixes |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
 | Private-service/GIS tests | 12 passed, none skipped |
 | Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
@@ -30,9 +30,11 @@ authenticated prep/export, known CRS conversion, Shapefile ZIP, GPX and KMZ inpu
 GEOS multipart repair, unsafe ZIP/XML rejection and a GeoPackage round trip that
 preserves polygon holes and attributes. They run against temporary SQLite/files.
 
-Local runtime: Node.js 24.22.1 and Python 3.12.14. CI selects Node 22 and the
-trusted self-hosted Windows runner's Python. CI is separate evidence and is not
-claimed to have passed merely because local checks passed.
+Local tests/build passed with Node.js 22.23.5 and 24.22.1; private-service checks
+used Python 3.12.14. Parent PR #75 was independently checked at
+`181197e9eb3393da0bb672e10a70007a14f74ffd`: 33 app tests and the production build
+passed on Node 22.23.5. CI uses the trusted self-hosted Windows runner and remains
+separate evidence. A code merge does not establish passing CI or deployment.
 
 ## Observed desktop workflows
 
@@ -66,6 +68,27 @@ and map feature keyboard semantics were also improved.
   its `Stale-tab edit` field remained visible. Reload showed the first tab's name.
 
 ![Observatory workspaces with a shared project map](docs/qa/workspaces-desktop.jpg)
+
+## Review corrections — November 17, 2026
+
+Six review findings have targeted corrections:
+
+| Finding | Correction and evidence |
+| --- | --- |
+| Distance/operator tokens read from layer names | Anchored captures supply the threshold, unit, comparison and ranking direction; regressions cover embedded `500 m`, `2 km`, Beyond and Farthest names |
+| Attribute draft copied onto another feature | Drafts carry both layer and feature identity; browser checks confirmed the next feature has an empty draft and disabled Save, with both original demand values intact |
+| Independent imports with duplicate names blocked merge review | A naming-conflict preview preserves both layers; explicit local/shared choice controls which retains its name and numbered suffixes avoid existing names |
+| Large maps exceeded JavaScript argument limits | Map bounds iterate over coordinates; a valid 300,000-coordinate project returned a finite frame |
+| Exported backups exceeded their own restore limit | Project bundles serialize compactly; the large-project regression fits 8 MB and round-trips through validation, while pretty JSON exceeds that limit |
+| Fractional demand weights changed score scale | Actual positive maximum is used; relative weights 0.1/0.2 and 1/2 produce the same scores, and all-zero demand remains finite |
+
+The existing 45 tests remain passing, with four additional regression groups.
+An associated ranking fix uses the ranking capture rather than searching layer
+names. Very large scoring weights also avoid intermediate multiplication overflow.
+The new browser check edited only an unsubmitted synthetic draft; switching
+between features retained original demand values 42 and 18.
+
+![Attribute draft isolated from the next selected feature](docs/qa/attribute-draft-isolation.jpg)
 
 ## Verification limits
 

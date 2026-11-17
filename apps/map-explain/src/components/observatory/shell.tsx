@@ -649,6 +649,13 @@ export function Observatory() {
                   {merging.conflicts.map((c) => (
                     <div className="conflict" key={c.path}>
                       <strong>{c.path}</strong>
+                      {c.kind === "layer_name" && (
+                        <p className="small">
+                          Choose which side keeps the original name. Both layers
+                          and their records remain; the other layer receives a
+                          numbered suffix.
+                        </p>
+                      )}
                       <div className="two">
                         <pre>Local: {JSON.stringify(c.local) ?? "deleted"}</pre>
                         <pre>

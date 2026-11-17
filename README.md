@@ -1,12 +1,70 @@
 # ZQM Observatory
 
-**ZQM Observatory** is an open-source **geospatial intelligence (GEOINT) and public-data research** project for reproducible mapping, source provenance, geospatial data quality assurance (QA), imagery discovery, and community briefs. It is being built to turn appropriately licensed public information into auditable geographic products—not unsourced claims or private-data aggregation.
+**ZQM Observatory** is the spatial workbench from **ZQM Computing**: prepare
+geographic data, ask traceable location questions, capture field observations,
+compare coverage gaps, and review maps with their sources and methods.
 
-**Volusia County, Florida is the proving ground, not the boundary.** The Observatory remains at **Stage 0 / build-out**. This repository does not claim a live map, feed, dashboard, or published data product. The outputs described below are planned capabilities, not deployed services. The local [five-workspace prototype](apps/map-explain/README.md) is available for engineering review; it does not establish a deployed service or verified product.
+**Status: Stage 0 / working prototype.** The five connected workspaces are
+implemented for local engineering review. They start with invented Providence
+records. This repository does not establish a live public service, a verified
+data product, or permission to publish imported records. ZQM Computing and
+ZQM Labs remain separate.
+
+![ZQM Observatory with five connected spatial workspaces](apps/map-explain/docs/qa/workspaces-desktop.jpg)
+
+## Start the local workspace
+
+Requires Node.js 22.12+ and npm. From the repository root:
+
+```sh
+cd apps/map-explain
+npm ci --ignore-scripts
+npm test
+npm run build
+npm run dev
+```
+
+Open the local address Vite prints. The browser workflows work without paid
+APIs, map tiles, or a server. For GeoPackage/Shapefile conversion and private
+project sync, follow the optional [Python service setup](services/observatory/README.md).
+The [application guide](apps/map-explain/README.md) covers formats, question
+patterns, backups, offline behavior, privacy, and limits. The [verification
+record](apps/map-explain/QA.md) separates local results, browser observations,
+remaining device checks, and GitHub CI status.
+
+## Integrated Observatory workspaces
+
+The [local application](apps/map-explain/README.md) connects five workspaces
+under **ZQM Observatory**, by **ZQM Computing**:
+
+| Workspace | User value |
+| --- | --- |
+| MapExplain | Ask supported location questions; inspect the map, records, sources, and steps |
+| Data Prep | Review and prepare spatial files with explicit CRS and repair choices |
+| Field Collection | Save observations/photos locally, then review and explicitly sync |
+| Coverage Analysis | Compare point-based coverage gaps and weighted supply scenarios |
+| Map Workspace | Style, filter, draw, edit attributes, and leave review notes |
+
+They share project layers, source lineage, IndexedDB persistence, history,
+portable draft bundles, and optional authenticated SQLite revision sync.
+The [private Python service](services/observatory/README.md) adds bounded vector
+format conversion and conflict-aware shared projects. No paid API or new
+recurring service is required. The [build-out mapping](docs/observatory-workspaces-build.md)
+identifies implemented prototype behavior and deferred specification items.
+
+Starter Providence data is invented. User-supplied records remain unverified;
+source rights and publication remain blocked. This is a reviewable engineering
+prototype, not a production service or an approved data-product pipeline. Existing
+source-rights, privacy, factual review, security, and release gates still apply.
+No production deployment, public data publication, or ZQM Labs integration is
+included.
 
 ## Mission and focus
 
-The Observatory is intended to help residents, visitors, families, and practitioners answer practical place-based questions using traceable public evidence:
+**Volusia County, Florida is the proving ground, not the boundary.** Alongside
+the workbench, the Observatory develops reproducible GEOINT and public-data
+research for residents, families, and practitioners using traceable public
+evidence:
 
 - **Safety context:** what available evidence says about places and routes—and what remains unverified.
 - **Situational awareness:** dated information about conditions and changes in a defined area.
@@ -94,33 +152,6 @@ Use the [first-product release gate](docs/first-product-release-gate.md) as the 
 ## How questions flow
 
 Every question travels the same cycle: **Direction → Collection → Processing → Analysis → Dissemination → Feedback → Governance.** The software exists to serve the cycle, not the other way around.
-
-## Integrated Observatory workspaces
-
-The [local application](apps/map-explain/README.md) connects five workspaces
-under **ZQM Observatory**, by **ZQM Computing**:
-
-| Workspace | User value |
-| --- | --- |
-| MapExplain | Ask supported location questions; inspect the map, records, sources, and steps |
-| Data Prep | Review and prepare spatial files with explicit CRS and repair choices |
-| Field Collection | Save observations/photos locally, then review and explicitly sync |
-| Coverage Analysis | Compare point-based coverage gaps and weighted supply scenarios |
-| Map Workspace | Style, filter, draw, edit attributes, and leave review notes |
-
-They share project layers, source lineage, IndexedDB persistence, history,
-portable draft bundles, and optional authenticated SQLite revision sync.
-The [private Python service](services/observatory/README.md) adds bounded vector
-format conversion and conflict-aware shared projects. No paid API or new
-recurring service is required. The [build-out mapping](docs/observatory-workspaces-build.md)
-identifies implemented prototype behavior and deferred specification items.
-
-Starter Providence data is invented. User-supplied records remain unverified;
-source rights and publication remain blocked. This is a reviewable engineering
-prototype, not a production service or an approved data-product pipeline. Existing
-source-rights, privacy, factual review, security, and release gates still apply.
-No production deployment, public data publication, or ZQM Labs integration is
-included.
 
 ## Repository guide
 

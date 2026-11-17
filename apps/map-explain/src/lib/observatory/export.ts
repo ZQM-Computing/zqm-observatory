@@ -3,7 +3,8 @@ import { validateProject, type Layer, type Project } from "./model.js";
 
 export function projectBundle(project: Project): string {
   validateProject(project);
-  return JSON.stringify(project, null, 2);
+  // Validation and restore use the UTF-8 byte size of this compact representation.
+  return JSON.stringify(project);
 }
 export function layerCSV(layer: Layer): string {
   const keys = [

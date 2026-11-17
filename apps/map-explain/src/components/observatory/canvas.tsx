@@ -8,6 +8,8 @@ import {
   type Position,
 } from "../../lib/observatory/model";
 
+import { mapFrame } from "../../lib/observatory/view";
+
 export type DrawMode = "none" | "Point" | "LineString" | "Polygon";
 export function Canvas({
   layers,
@@ -29,22 +31,7 @@ export function Canvas({
   selected?: string;
 }) {
   const [zoom, setZoom] = useState(1);
-  const frame = useMemo(() => {
-    const coords = layers.flatMap((l) =>
-      l.features.flatMap((f) => positions(f.geometry)),
-    );
-    if (!coords.length) coords.push([-71.46, 41.79], [-71.36, 41.86]);
-    const x0 = Math.min(...coords.map((p) => p[0])),
-      x1 = Math.max(...coords.map((p) => p[0]));
-    const y0 = Math.min(...coords.map((p) => p[1])),
-      y1 = Math.max(...coords.map((p) => p[1]));
-    const cos = Math.max(0.05, Math.cos((((y0 + y1) / 2) * Math.PI) / 180));
-    const scale = Math.min(
-      820 / Math.max((x1 - x0) * cos, 0.005),
-      500 / Math.max(y1 - y0, 0.005),
-    );
-    return { cx: (x0 + x1) / 2, cy: (y0 + y1) / 2, cos, scale };
-  }, [layers]);
+  const frame = useMemo(() => mapFrame(layers), [layers]);
   const scale = frame.scale * zoom;
   const project = (p: Position) => [
     500 + (p[0] - frame.cx) * frame.cos * scale,
