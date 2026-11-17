@@ -44,9 +44,14 @@ export async function request<T>(
     signal: AbortSignal.timeout(30000),
     cache: "no-store",
   });
-  const data: unknown = await response.json().catch(() => ({
-    error: "Private service not configured or returned an invalid response.",
-  }));
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      "Private service not configured or returned an invalid JSON response.",
+    );
+  }
   const projectPath = /^projects\/([a-zA-Z0-9_-]{1,80})$/.exec(path);
   if (response.status === 409 && projectPath) {
     if (!isRecord(data) || !("current" in data))
@@ -66,6 +71,17 @@ export async function request<T>(
         : `Private service returned ${response.status}.`,
     );
   return data as T;
+}
+export async function checkService(token: string): Promise<void> {
+  const result = await request<unknown>("health", token);
+  if (
+    !isRecord(result) ||
+    result.status !== "ready" ||
+    result.publication_authorized !== false
+  )
+    throw new Error(
+      "Private service did not return the expected authenticated readiness response.",
+    );
 }
 export async function pull(projectId: string, token: string): Promise<Remote> {
   if (typeof projectId !== "string" || !/^[a-zA-Z0-9_-]{1,80}$/.test(projectId))

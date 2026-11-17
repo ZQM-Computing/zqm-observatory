@@ -8,7 +8,11 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { IDBFactory } from "fake-indexeddb";
-import { pull, push } from "../.test-build/src/lib/observatory/api.js";
+import {
+  checkService,
+  pull,
+  push,
+} from "../.test-build/src/lib/observatory/api.js";
 import {
   change,
   demoState,
@@ -98,6 +102,7 @@ try {
     }
     return result;
   };
+  await checkService(TOKEN);
   let state = change(demoState(), "Initial synthetic sync edit", (p) => {
     p.name = "Original shared snapshot";
   });

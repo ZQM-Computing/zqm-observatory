@@ -33,7 +33,12 @@ import {
   recoveredProject,
   type RecoveryCopy,
 } from "../../lib/observatory/recovery";
-import { pull, request, type Remote } from "../../lib/observatory/api";
+import {
+  checkService,
+  pull,
+  request,
+  type Remote,
+} from "../../lib/observatory/api";
 import {
   mergeProjects,
   type Choices,
@@ -655,7 +660,7 @@ export function Observatory() {
                     disabled={busy || !token}
                     onClick={() =>
                       perform(async () => {
-                        await request("health", token);
+                        await checkService(token);
                         show(
                           "Private service responded and accepted the token.",
                         );

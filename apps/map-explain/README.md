@@ -162,6 +162,9 @@ saved retry. Newer edits stay queued until the earlier upload is confirmed, then
 need a separate push. Fetching a shared project is disabled while a retry is
 unconfirmed. No upload runs automatically in the background.
 
+The service check also requires a valid authenticated readiness response; an
+HTML fallback or error object cannot be reported as a ready private service.
+
 Only an acknowledgement for the requested project, exact submitted JSON content,
 and next server revision clears the sent operations. Object member ordering does
 not affect acknowledgement or merge equality; coordinate/array order still

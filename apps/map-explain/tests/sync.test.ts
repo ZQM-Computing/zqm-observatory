@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test, { beforeEach } from "node:test";
 import { IDBFactory, IDBObjectStore } from "fake-indexeddb";
-import { pull, push, SyncConflict } from "../src/lib/observatory/api.js";
+import {
+  checkService,
+  pull,
+  push,
+  SyncConflict,
+} from "../src/lib/observatory/api.js";
 import {
   change,
   clone,
@@ -51,6 +56,26 @@ function client(initial: LocalState) {
 }
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory();
+});
+
+test("readiness checks reject HTML fallbacks, error objects and invalid readiness claims", async (t) => {
+  let result = new Response("<html>Static preview</html>", {
+    headers: { "Content-Type": "text/html" },
+  });
+  t.mock.method(globalThis, "fetch", async () => result);
+  await assert.rejects(checkService(TOKEN), /invalid JSON response/);
+  for (const body of [
+    { error: "Not a private API" },
+    { status: "ready", publication_authorized: true },
+    { status: "starting", publication_authorized: false },
+  ]) {
+    result = response(body);
+    await assert.rejects(checkService(TOKEN), /readiness response/);
+  }
+  result = response({ error: "Private workspace token required." }, 401);
+  await assert.rejects(checkService(TOKEN), /token required/);
+  result = response({ status: "ready", publication_authorized: false });
+  await checkService(TOKEN);
 });
 
 test("an accepted upload with a lost reply survives reload and confirms before later edits", async (t) => {

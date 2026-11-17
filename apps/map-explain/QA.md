@@ -8,7 +8,7 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 77 passed, none skipped; includes durable sync, response contracts, recovery and IndexedDB regressions |
+| TypeScript/core regression tests | 78 passed, none skipped; includes durable sync, response contracts, recovery and IndexedDB regressions |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
 | Private-service/GIS tests | 17 passed, none skipped |
 | Optional client/service integration | Passed with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
@@ -145,13 +145,15 @@ backups or a substitute for export.
 
 ## Durable private uploads — November 17, 2026
 
-Thirteen additional app regression groups verify that the upload snapshot is
+Fourteen additional app regression groups verify that the upload snapshot is
 durable before any request, a lost reply or failed local acknowledgement remains
 retryable after a fresh database read, competing tabs cannot create independent
 requests from one local revision, and later edits stay queued. Tests reject
 malformed/foreign responses, incorrect successful content or revision, unsafe
 revision numbers, malformed pending metadata and persisted credential fields.
 Key-order-only changes no longer create false processing-step merge conflicts.
+Readiness checks reject HTML fallback pages, error objects and invalid readiness
+claims, rather than reporting that a static preview accepted the private token.
 
 The optional integration command starts an isolated Python service with real
 SQLite and uses the production client/controller with an in-memory IndexedDB
