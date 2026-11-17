@@ -184,9 +184,29 @@ export function interpret(raw: string): Intent | null {
     const relation = q.match(/^(.*?)\b(?:nearest|closest|farthest|furthest)\s+(?:(?:to|from)\s+)?(.+)$/);
     if (!relation) return null;
     const subjects = detectKinds(relation[1]);
-    const targets = detectKinds(relation[2]);
+    const targets = detectKinds(relation[2].replace(/ and color them by order volume\.?$/, ""));
     if (subjects.length !== 1 || targets.length !== 1 || subjects[0] === targets[0]) return null;
     return { kind: "distance_rank", subject: subjects[0], target: targets[0], dir: wantsFar ? "desc" : "asc" };
+  }
+
+  if (kinds.length >= 2 && (wantsWithin || wantsBeyond || distance)) {
+    const relation = q.match(/^(.*?)\b(?:within|inside|closer than|less than|more than|farther than|further than|beyond|outside|near)\b\s*(?:\d+(?:\.\d+)?\s*(?:kilometers?|km|meters?|miles?|mi|m)\b\s*)?(?:(?:of|from|to)\s+)?(.+)$/);
+    if (!relation) return null;
+    const subjects = detectKinds(relation[1]);
+    const targets = detectKinds(relation[2].replace(/ and color them by order volume\.?$/, ""));
+    if (subjects.length !== 1 || targets.length !== 1 || subjects[0] === targets[0]) return null;
+    const subject = subjects[0];
+    const target = targets[0];
+    const mode = wantsBeyond && !wantsWithin ? "beyond" : "within";
+    const meters = clampMeters(distance?.meters ?? (subject === "customers" && target === "warehouse" ? 1500 : 1000));
+    const note = distance?.note ?? null;
+    if (subject === "upload" && (target === "clinics" || target === "parks" || target === "warehouse")) {
+      return { kind: "upload_near", target, mode, meters, note };
+    }
+    if (subject === "customers" && target === "warehouse" && mode === "within") {
+      return { kind: "customers_near_warehouse", meters, note };
+    }
+    return { kind: "points_within", subject, target, mode, meters, note };
   }
 
   if (kinds.includes("upload") && (wantsWithin || wantsBeyond || distance || wantsFar || wantsNear)) {
@@ -227,6 +247,7 @@ export function interpret(raw: string): Intent | null {
     /park/.test(q) &&
     (/gap|coverage|underserv|unserved|access/.test(q) || /child|kid/.test(q))
   ) {
+    if (wantsWithin) return null;
     return { kind: "park_child_gap", radiusM: clampMeters(distance?.meters ?? 800) };
   }
 
@@ -288,38 +309,6 @@ export function interpret(raw: string): Intent | null {
         ? "warehouse"
         : "clinics";
     return { kind: "zone_distance", target, dir: (wantsNear || wantsWithin) && !wantsFar && !wantsBeyond ? "asc" : "desc" };
-  }
-
-  const pointKinds = kinds.filter((k) => k !== "upload");
-  if (pointKinds.length >= 2 && (wantsWithin || wantsBeyond || distance)) {
-    let target: PointKind = pointKinds[1];
-    let subject: PointKind = pointKinds[0];
-    if (/from (the |a |nearest )?(warehouse|depot)/.test(q)) target = "warehouse";
-    else if (/from (the |a |nearest )?(clinic|health|doctor)/.test(q)) target = "clinics";
-    else if (/from (the |a |nearest )?(park)/.test(q)) target = "parks";
-    else if (/of (the |a |nearest )?(warehouse|depot)/.test(q)) target = "warehouse";
-    else if (/of (the |a |nearest )?(clinic|health)/.test(q)) target = "clinics";
-    else if (/of (the |a |nearest )?(park)/.test(q)) target = "parks";
-    subject = pointKinds.find((k) => k !== target) ?? subject;
-    if (subject !== target) {
-      return {
-        kind: "points_within",
-        subject,
-        target,
-        mode: wantsBeyond && !wantsWithin ? "beyond" : "within",
-        meters: clampMeters(distance?.meters ?? 1000),
-        note: distance?.note ?? null,
-      };
-    }
-  }
-
-  if ((wantsFar || wantsNear) && pointKinds.length >= 2) {
-    return {
-      kind: "distance_rank",
-      subject: pointKinds[0],
-      target: pointKinds[1],
-      dir: wantsFar ? "desc" : "asc",
-    };
   }
 
   const op = /at most/.test(q) ? "lte"

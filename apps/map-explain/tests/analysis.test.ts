@@ -217,3 +217,32 @@ test("near neighborhoods rank closest first", () => {
   assert.deepEqual(interpret("Show neighborhoods near the warehouse"), { kind: "zone_distance", target: "warehouse", dir: "asc" });
   assert.deepEqual(tryAnswer("Show neighborhoods near the warehouse", { upload: [] }), tryAnswer("Show neighborhoods nearest to the warehouse", { upload: [] }));
 });
+
+test("proximity roles follow the requested subject, including reversed shortcuts", () => {
+  const upload = [{ id: "upload-1", name: "Site", lon: clinics[0].lon, lat: clinics[0].lat, props: {} }];
+  for (const [subject, target] of [["clinics", "my points"], ["warehouse", "customers"]]) {
+    const question = `Show ${subject} within 1 km of ${target}`;
+    const result = tryAnswer(question, { upload })!;
+    assert.ok(result.rows.length > 0);
+    const expectedIds = new Set(run({ kind: "show", layers: [subject as "clinics" | "warehouse"] }, { upload }).rows.map((r) => r.id));
+    assert.ok(result.rows.every((r) => expectedIds.has(r.id)));
+    assert.equal(interpret(question)!.kind, "points_within");
+  }
+});
+
+test("empty senior-distance exports exclude fallback map context", () => {
+  const question = "Which neighborhoods have the highest senior share more than 100 km from clinics?";
+  const result = tryAnswer(question, { upload: [] })!;
+  assert.equal(result.rows.length, 0);
+  assert.equal(JSON.parse(resultGeoJSON(result, question)).features.length, 0);
+  assert.equal(resultCSV(result, question).split("\r\n").length, 1);
+  assert.ok(result.neighborhoods.length > 0);
+  assert.match(result.summary, /map shows.*context/);
+});
+
+test("child park proximity requests decline rather than return gaps", () => {
+  for (const relation of ["within", "less than", "closer than"]) {
+    assert.equal(interpret(`Show neighborhoods with a high child share ${relation} 1 km of parks`), null);
+  }
+  assert.equal(interpret(EXAMPLES[2].question)!.kind, "park_child_gap");
+});

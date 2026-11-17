@@ -405,7 +405,7 @@ function seniorGap(minMeters: number, note: string | null): QueryResult {
     ? ` ${byCount.name} has the most older residents in total (${formatNumber(byCount.pop65)}), but it is not in this distance filter.`
     : "";
   const rowsSource = kept.length ? kept : [...scored].sort((a, b) => b.meters - a.meters).slice(0, 4);
-  const bar = bars(rowsSource.map((s) => s.n.share65));
+  const bar = bars(kept.map((s) => s.n.share65));
   const emphasis = new Set(rowsSource.map((s) => s.n.id));
   const nb = paintNeighborhoods(
     neighborhoods.map((n) => ({
@@ -429,7 +429,7 @@ function seniorGap(minMeters: number, note: string | null): QueryResult {
   return shell({
     key: `senior:${minMeters}:${kept.map((k) => k.n.id).join()}`,
     title,
-    summary: `${lead}${contrast} Distance is from each neighborhood centroid to the nearest clinic point.${misses ? " Nothing passed the threshold, so the list shows the farthest centroids instead." : ""}`,
+    summary: `${lead}${contrast} Distance is from each neighborhood centroid to the nearest clinic point.${misses ? " Nothing passed the threshold; the map shows the farthest centroids as context." : ""}`,
     confidence: note ? "Approximate" : "Calculated locally",
     confidenceNote: note ? `${note} ${MEASURED}` : MEASURED,
     steps: [
@@ -451,7 +451,7 @@ function seniorGap(minMeters: number, note: string | null): QueryResult {
       },
     ],
     sources: [SOURCE_NBHD, SOURCE_CLINIC, SOURCE_DIST],
-    rows: rowsSource.map((s, i) => ({
+    rows: kept.map((s, i) => ({
       id: s.n.id,
       name: s.n.name,
       primary: formatPercent(s.n.share65) + " age 65+",
