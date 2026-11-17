@@ -177,6 +177,7 @@ export function PrepPanel({
         JSON.stringify(response.collection),
         file.name.replace(/\.[^.]+$/, ".geojson"),
         { ...options, sourceCrs: "EPSG:4326" },
+        "private-output",
       );
       if (prepared.layer) {
         prepared.layer.source.name = file.name;
@@ -1003,14 +1004,14 @@ export function MapPanel({
               aria-label={`Show ${l.name}`}
               checked={l.visible}
               disabled={busy}
-              onChange={(e) =>
+              onChange={(e) => {
+                const visible = e.currentTarget.checked;
                 perform(() =>
                   commit(`Visibility: ${l.name}`, (p) => {
-                    p.layers.find((x) => x.id === l.id)!.visible =
-                      e.target.checked;
+                    p.layers.find((x) => x.id === l.id)!.visible = visible;
                   }),
-                )
-              }
+                );
+              }}
             />
             <input
               type="color"

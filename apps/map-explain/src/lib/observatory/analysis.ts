@@ -216,11 +216,11 @@ export function answerProject(question: string, layers: Layer[]): Analysis {
     return result;
   }
   if (matched.length === 2 && countPattern?.test(q)) {
-    const points = matched.find((l) => pointFeatures(l).length),
-      zones = matched.find((l) =>
-        l.features.some((f) => f.geometry.type === "Polygon"),
-      );
-    if (!points || !zones || points.id === zones.id)
+    const [points, zones] = matched;
+    if (
+      !pointFeatures(points).length ||
+      !zones.features.some((f) => f.geometry.type === "Polygon")
+    )
       throw new Error("Count requires one Point layer and one Polygon layer.");
     const features = zones.features
       .filter((f) => f.geometry.type === "Polygon")
@@ -238,6 +238,7 @@ export function answerProject(question: string, layers: Layer[]): Analysis {
     );
     const methods = [
       "Point-in-polygon with polygon holes excluded. Overlapping polygons can count a point more than once. Boundary points follow ray-casting semantics and need review.",
+      `Counted Point features from ${points.name} inside Polygon features from ${zones.name}. Other geometries in each layer were excluded explicitly.`,
     ];
     layer.steps = [
       inputStep(points, zones),

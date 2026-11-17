@@ -51,7 +51,13 @@ are rejected. Authentication is checked before body processing.
 | `POST /api/export` | Validated project `layer` and EPSG `target_crs`; returns a draft GeoPackage as base64 with source/method metadata |
 
 SQLite read/compare/write uses `BEGIN IMMEDIATE`. Only one writer can advance a
-revision. Within the latest 20 revisions, repeating the same operation/body
+revision. Project sizes and response bodies use UTF-8 JSON so non-ASCII text does not
+consume an inflated ASCII-escape budget; lone UTF-16 surrogates retain valid JSON
+escapes for compatibility with browser documents. Operation receipts written by the prior
+ASCII-escaped format remain valid for identical retries. Database contexts always
+close their handles after commit or rollback.
+
+Within the latest 20 revisions, repeating the same operation/body
 returns its original receipt; reusing its ID for another body fails. Older
 receipts expire, but a stale expected revision still fails. Twenty server
 versions are retained for operational recovery; there is no version-selection

@@ -510,3 +510,71 @@ test("large accepted map projects render bounded frames and round-trip compact b
   const empty = mapFrame([]);
   assert.ok(Number.isFinite(empty.scale));
 });
+
+test("count preserves subject and target roles when both layers mix geometry types", () => {
+  const zone: Feature = {
+    type: "Feature",
+    id: "zone",
+    properties: { name: "Zone" },
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [-1, -1],
+          [1, -1],
+          [1, 1],
+          [-1, 1],
+          [-1, -1],
+        ],
+      ],
+    },
+  };
+  const subject = makeLayer("People", [
+    point("person", 0, 0),
+    { ...clone(zone), id: "subject-area" },
+  ]);
+  const target = makeLayer("Zones", [zone, point("target-point", 5, 5)]);
+  const counted = answerProject("Count People in Zones", [subject, target]);
+  assert.deepEqual(
+    counted.rows.map((r) => [r.id, r.value]),
+    [["zone", 1]],
+  );
+  const reversed = answerProject("Count Zones in People", [subject, target]);
+  assert.deepEqual(
+    reversed.rows.map((r) => [r.id, r.value]),
+    [["subject-area", 0]],
+  );
+  assert.equal(subject.features.length, 2);
+  assert.equal(target.features.length, 2);
+  assert.ok(counted.methods.some((m) => m.includes("Other geometries")));
+});
+
+test("private prep output can exceed browser upload size while preserving shared project limits", () => {
+  const f = point("large", 0, 0);
+  f.properties.description = "x".repeat(2_100_000);
+  const source = JSON.stringify({ type: "FeatureCollection", features: [f] });
+  assert.throws(() => prepare(source, "large.geojson"), /2 MB/);
+  const prepared = prepare(
+    source,
+    "large.geojson",
+    DEFAULT_PREP,
+    "private-output",
+  );
+  assert.equal(
+    prepared.layer?.features[0].properties.description,
+    f.properties.description,
+  );
+  const project = demoState().project;
+  project.layers.push(prepared.layer!);
+  validateProject(project);
+  assert.throws(
+    () =>
+      prepare(
+        "x".repeat(8_000_001),
+        "too-large.geojson",
+        DEFAULT_PREP,
+        "private-output",
+      ),
+    /8 MB/,
+  );
+});
