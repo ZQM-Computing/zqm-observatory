@@ -4,8 +4,8 @@
 
 The ZQM Observatory is a self-hosted, open-source observatory that turns
 public data into mapped, verifiable intelligence: GEOINT (land, water,
-infrastructure, imagery, sensors) and OSINT (entities, domains, records,
-signals) fused into one picture.
+infrastructure, imagery, sensors), OSINT (entities, domains, records), and
+SIGINT (publicly observable signals) fused into one picture.
 
 Its products are written for ordinary people making ordinary decisions:
 where is safe, what is happening nearby, which services and systems can be
@@ -35,6 +35,65 @@ The Observatory is focused on:
   not the whole.
 - Family values: family-friendly places and activities, and products a
   family can use and trust.
+
+## Geospatial intelligence (GEOINT)
+
+GEOINT is the mapped picture of a place: land, water, infrastructure,
+imagery, and sensors, drawn from public data. Topography, surface water,
+land cover, weather and coastal observations, boundaries and demographics
+in aggregate, Earth-observation imagery, and community-mapped roads, paths,
+and facilities — joined into one map a reader can check against the
+sources it names.
+
+A map layer is a record, not a verdict. GEOINT here does not claim a place
+is open, accessible, safe, or served at a particular time solely because
+it appears in a layer. Place conditions that matter — access, entrances,
+hours, route continuity, amenities — are field-verified before they are
+published as fact, or the gap is stated plainly. Measurements respect the
+source: the original coordinate system is preserved and any reprojection
+is documented, and a straight-line distance is never presented as a
+walkable route.
+
+GEOINT is reported as aggregates, under the same rule as everything else
+in this repository: no individual tracks, no personal data, and no
+children's identifiable data, ever.
+
+## Open-source intelligence (OSINT)
+
+OSINT is the recorded picture of who and what: entities, domains, and
+public records — what an organization is, what a record says, what a
+registration or filing shows — established from sources anyone can name,
+link, and re-check.
+
+Every claim traces to a named public source with a retrieval date. A
+source that cannot be named and linked cannot be used. Public and open
+sources only: no credentialed, paywalled, or private data of any kind, and
+no individual-level records. Where a record is stale, conflicting, or
+incomplete, the product says so instead of smoothing it over.
+
+OSINT is reported as aggregates, under the same rule as everything else
+in this repository: no individual tracks, no personal data, and no
+children's identifiable data, ever.
+
+## Signals intelligence (SIGINT)
+
+SIGINT is the systematic observation of publicly visible activity and
+change: procurement feeds, hiring posts, press releases, public posts,
+public page changes, and public-record updates, read as signals about what
+is happening and what is about to happen. Where GEOINT maps what is there
+and OSINT establishes who and what is recorded, SIGINT watches what moves.
+
+The boundary is hard and public-only. SIGINT here means signals anyone can
+observe without a login, a credential, or a private account: no
+interception of private communications, no private accounts, no
+behind-login access. A fact that can only be reached behind a login is
+marked unresolved, not chased. Aggregators and search-index mirrors are
+corroboration only, never the basis for a claim on their own.
+
+Signals are about institutions, projects, and places, not people. SIGINT
+is reported as aggregates, under the same rule as everything else in this
+repository: no individual tracks, no personal data, and no children's
+identifiable data, ever.
 
 ## What it is not
 

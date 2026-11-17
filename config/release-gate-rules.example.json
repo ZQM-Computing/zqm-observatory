@@ -1,0 +1,7 @@
+{
+  "block_on_severity": [
+    "critical"
+  ],
+  "max_removed": 0,
+  "require_run_ids": true
+}

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "review_type": "zqm_observatory_release_reviews",
+  "note": "Example template only. All gates are pending; this file is not approval evidence.",
+  "gates": {
+    "source_rights": {
+      "decision": "pending",
+      "reviewer": "",
+      "reviewed_on": "",
+      "evidence": ""
+    },
+    "privacy": {
+      "decision": "pending",
+      "reviewer": "",
+      "reviewed_on": "",
+      "evidence": ""
+    },
+    "factual_quality": {
+      "decision": "pending",
+      "reviewer": "",
+      "reviewed_on": "",
+      "evidence": ""
+    },
+    "product_owner": {
+      "decision": "pending",
+      "reviewer": "",
+      "reviewed_on": "",
+      "evidence": ""
+    }
+  }
+}

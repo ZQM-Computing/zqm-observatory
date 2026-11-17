@@ -1,0 +1,8 @@
+{
+  "default": "low",
+  "geometry": "medium",
+  "properties": {
+    "name": "low",
+    "category": "high"
+  }
+}

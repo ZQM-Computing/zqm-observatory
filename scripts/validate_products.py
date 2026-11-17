@@ -14,7 +14,7 @@ import sys
 from datetime import date
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urlparse
 
 PRODUCT_DIR = re.compile(r"^(\d{4}-\d{2}-\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$")
 PRODUCT_REQUIRED = {
@@ -25,12 +25,42 @@ PRODUCT_REQUIRED = {
 SOURCE_REQUIRED = {"id", "title", "publisher", "url", "retrieval_date", "license", "supports"}
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate JSON object key: {key!r}")
+        result[key] = value
+    return result
+
+
 def read_json(path: Path, errors: list[str]) -> Any:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        return json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+        )
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
         errors.append(f"{path}: cannot read valid JSON ({exc})")
         return None
+
+
+def safe_relative_file(value: Any) -> bool:
+    if not isinstance(value, str) or not value or "\\" in value:
+        return False
+    # A drive-prefixed path is not portable: on POSIX it can look relative,
+    # while Windows interprets it as a drive path (absolute or drive-relative).
+    if re.match(r"^[A-Za-z]:", value):
+        return False
+    candidate = Path(value)
+    # Require portable, canonical relative paths; reject empty/dot segments,
+    # absolute paths, traversal, and control characters.
+    parts = value.split("/")
+    return (
+        not candidate.is_absolute()
+        and all(part not in {"", ".", ".."} for part in parts)
+        and not any(ord(char) < 32 or ord(char) == 127 for char in value)
+    )
 
 
 def is_iso_date(value: Any) -> bool:
@@ -48,20 +78,29 @@ def validate_product(path: Path) -> list[str]:
     match = PRODUCT_DIR.fullmatch(folder)
     if not match:
         errors.append(f"{path}: directory must be named YYYY-MM-DD-lowercase-slug")
+    if path.is_symlink():
+        return [f"{path}: product directory must not be a symlink"]
+    if not path.is_dir():
+        return [f"{path}: product path must be a directory"]
+    # A bundle is an untrusted publication boundary. Reject links anywhere in
+    # it before reading metadata or method files, not just declared data assets.
+    linked_paths = sorted(item for item in path.rglob("*") if item.is_symlink())
+    if linked_paths:
+        return [f"{item}: symlinks are not allowed inside product bundles" for item in linked_paths]
     product = read_json(path / "product.json", errors)
     sources = read_json(path / "sources.json", errors)
     if not isinstance(product, dict):
-        errors.append(f"{path}/product.json: must be an object")
+        errors.append(f"{path}/product.json: top-level value must be a JSON object")
     if not isinstance(sources, list):
-        errors.append(f"{path}/sources.json: must be a list")
+        errors.append(f"{path}/sources.json: top-level value must be a JSON array")
     if not isinstance(product, dict) or not isinstance(sources, list):
         return errors
 
     missing = sorted(PRODUCT_REQUIRED - product.keys())
     if missing:
         errors.append(f"{path}/product.json: missing fields: {', '.join(missing)}")
-    if product.get("schema_version") != 1:
-        errors.append(f"{path}/product.json: schema_version must be 1")
+    if type(product.get("schema_version")) is not int or product.get("schema_version") != 1:
+        errors.append(f"{path}/product.json: schema_version must be integer 1 (booleans are not valid versions)")
     if product.get("product_id") != folder:
         errors.append(f"{path}/product.json: product_id must equal directory name")
     if not is_iso_date(product.get("publication_date")):
@@ -76,19 +115,37 @@ def validate_product(path: Path) -> list[str]:
     if not isinstance(data_files, list) or not data_files:
         errors.append(f"{path}/product.json: data_files must be a non-empty list")
         data_files = []
+    if all(isinstance(item, str) for item in data_files) and len(data_files) != len(set(data_files)):
+        errors.append(f"{path}/product.json: data_files entries must be unique")
     for item in data_files:
-        if not isinstance(item, str) or not item or Path(item).is_absolute() or ".." in Path(item).parts:
+        if not safe_relative_file(item):
             errors.append(f"{path}/product.json: unsafe data_files entry: {item!r}")
             continue
         candidate = path / item
+        if candidate.is_symlink():
+            errors.append(f"{path}/product.json: symlink data files are not allowed: {item}")
+            continue
         try:
-            contained = candidate.resolve().is_relative_to(path.resolve())
-        except (OSError, RuntimeError):
-            contained = False
-        if not contained:
-            errors.append(f"{path}/product.json: data file must resolve inside bundle: {item}")
-        elif not candidate.is_file():
+            resolved = candidate.resolve(strict=False)
+            resolved.relative_to(path.resolve())
+        except (OSError, ValueError):
+            errors.append(f"{path}/product.json: data file escapes product directory: {item}")
+            continue
+        if not candidate.is_file():
             errors.append(f"{path}/product.json: listed data file does not exist: {item}")
+
+    # Every regular file in a product bundle must be declared as a data asset
+    # or be one of the three standard metadata/method files. This prevents an
+    # unlisted sidecar from bypassing review and publication inventory.
+    declared_files = {
+        item for item in data_files
+        if safe_relative_file(item)
+    }
+    allowed_files = {"product.json", "sources.json", "method.md"} | declared_files
+    for candidate in sorted(item for item in path.rglob("*") if item.is_file()):
+        relative = candidate.relative_to(path).as_posix()
+        if relative not in allowed_files:
+            errors.append(f"{path}: undeclared file in product bundle: {relative}")
 
     field = product.get("field_verification")
     if not isinstance(field, dict) or field.get("status") not in {"verified", "not_verified", "not_applicable"} or not isinstance(field.get("notes"), str) or not field["notes"].strip():
@@ -108,8 +165,11 @@ def validate_product(path: Path) -> list[str]:
             errors.append(f"{path}/product.json: children_identifiable_data must be false")
         if not isinstance(privacy.get("reviewed_by"), str) or not privacy["reviewed_by"].strip():
             errors.append(f"{path}/product.json: privacy_review.reviewed_by must be a non-empty string")
-        if not is_iso_date(privacy.get("review_date")):
+        review_date = privacy.get("review_date")
+        if not is_iso_date(review_date):
             errors.append(f"{path}/product.json: privacy_review.review_date must be YYYY-MM-DD")
+        elif is_iso_date(product.get("publication_date")) and review_date > product["publication_date"]:
+            errors.append(f"{path}/product.json: privacy_review.review_date must not be after product publication_date")
 
     if not sources:
         errors.append(f"{path}/sources.json: at least one source is required")
@@ -131,40 +191,84 @@ def validate_product(path: Path) -> list[str]:
             if not isinstance(source.get(key), str) or not source[key].strip():
                 errors.append(f"{label}: {key} must be a non-empty string")
         url = source.get("url")
-        try:
-            parsed_url = urlsplit(url) if isinstance(url, str) else None
-            if parsed_url is not None:
-                # Accessing port checks numeric syntax and range.
-                _ = parsed_url.port
-            valid_url = parsed_url is not None and parsed_url.scheme == "https" and bool(parsed_url.hostname)
-        except ValueError:
-            valid_url = False
-        if not valid_url or any(ch.isspace() for ch in url):
-            errors.append(f"{label}: url must be an HTTPS URL")
-        if not is_iso_date(source.get("retrieval_date")):
+        valid_url = False
+        if isinstance(url, str):
+            try:
+                parsed_url = urlparse(url)
+                # Accessing hostname/port also validates malformed IPv6 and
+                # port syntax; keep all parser-dependent work in this guard.
+                hostname = parsed_url.hostname
+                port = parsed_url.port
+                valid_url = (
+                    parsed_url.scheme == "https"
+                    and bool(hostname)
+                    and parsed_url.username is None
+                    and parsed_url.password is None
+                    and not any(ch.isspace() for ch in url)
+                    and (port is None or 1 <= port <= 65535)
+                    and not any(ord(ch) < 32 or ord(ch) == 127 for ch in url)
+                )
+            except ValueError:
+                valid_url = False
+        if not valid_url:
+            errors.append(f"{label}: url must be a valid HTTPS URL with a hostname, valid port, and no embedded credentials")
+        retrieval_date = source.get("retrieval_date")
+        if not is_iso_date(retrieval_date):
             errors.append(f"{label}: retrieval_date must be YYYY-MM-DD")
+        elif is_iso_date(product.get("publication_date")) and retrieval_date > product["publication_date"]:
+            errors.append(f"{label}: retrieval_date must not be after product publication_date")
         if not isinstance(source.get("supports"), list) or not source["supports"] or any(not isinstance(x, str) or not x.strip() for x in source["supports"]):
             errors.append(f"{label}: supports must list the claims this source supports")
 
     if len(source_ids) != len(set(source_ids)):
         errors.append(f"{path}/sources.json: source IDs must be unique")
     declared_ids = product.get("source_ids")
-    if not isinstance(declared_ids, list) or not declared_ids or any(not isinstance(x, str) for x in declared_ids):
-        errors.append(f"{path}/product.json: source_ids must be a non-empty list")
-    elif set(declared_ids) != set(source_ids):
-        errors.append(f"{path}: product source_ids must match sources.json IDs")
+    if not isinstance(declared_ids, list) or not declared_ids or any(not isinstance(x, str) or not x.strip() for x in declared_ids):
+        errors.append(f"{path}/product.json: source_ids must be a non-empty list of non-empty strings")
+    else:
+        if len(declared_ids) != len(set(declared_ids)):
+            errors.append(f"{path}/product.json: source_ids must be unique")
+        if set(declared_ids) != set(source_ids):
+            errors.append(f"{path}: product source_ids must match sources.json IDs")
     if not (path / "method.md").is_file():
         errors.append(f"{path}: method.md is required")
-    elif len((path / "method.md").read_text(encoding="utf-8").strip()) < 100:
-        errors.append(f"{path}/method.md: method must explain reproducible steps (at least 100 characters)")
+    else:
+        try:
+            method_text = (path / "method.md").read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            errors.append(f"{path}/method.md: cannot read UTF-8 method text ({exc})")
+        else:
+            if len(method_text.strip()) < 100:
+                errors.append(f"{path}/method.md: method must explain reproducible steps (at least 100 characters)")
     return errors
 
 
 def validate_data_dir(data_dir: Path) -> list[str]:
+    if data_dir.is_symlink():
+        return [f"{data_dir}: data directory must not be a symlink"]
     if not data_dir.is_dir():
-        return [f"{data_dir}: data directory does not exist"]
-    products = sorted(p for p in data_dir.iterdir() if p.is_dir() and not p.name.startswith("."))
+        return [f"{data_dir}: data directory does not exist or is not a directory"]
     errors: list[str] = []
+    products: list[Path] = []
+    for entry in sorted(data_dir.iterdir()):
+        # Hidden repository/editor sentinels are not product payloads. Every
+        # visible top-level entry, however, must be a real product directory;
+        # otherwise files can sit beside reviewed bundles without being gated.
+        if entry.name.startswith("."):
+            continue
+        # The repository-level data/README.md explains the bundle layout and
+        # is documentation, not an unreviewed data asset.
+        if entry.name == "README.md" and entry.is_file() and not entry.is_symlink():
+            continue
+        if entry.is_symlink():
+            errors.append(f"{entry}: top-level data entries must not be symlinks")
+        elif entry.is_dir():
+            products.append(entry)
+        else:
+            errors.append(
+                f"{entry}: unexpected top-level file; data/ must contain dated product directories only"
+            )
+
     for product_dir in products:
         errors.extend(validate_product(product_dir))
     if not products:

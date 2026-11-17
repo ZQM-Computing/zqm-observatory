@@ -1,0 +1,213 @@
+{
+  "schema_version": 1,
+  "policy": {
+    "default_decision": "BLOCKED_PENDING_REVIEW",
+    "publication_requires_explicit_approval": true,
+    "metadata_audit_is_not_record_validation": true,
+    "note": "Unknown permission is not permission. Null means not established; false means not granted or not allowed for the intended use."
+  },
+  "sources": [
+    {
+      "id": "volusia-park-locations-layer-4",
+      "title": "Volusia County Park Locations",
+      "publisher": "Volusia County, Florida",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/4",
+      "layer_id": 4,
+      "source_vintage": "Current vintage not established in this audit",
+      "intended_product": "Sourced public-recreation inventory",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify authoritative portal item and data steward.",
+        "Establish terms for capture, transformation, public display, and raw/derived redistribution.",
+        "Verify Status and amenity-field semantics before making claims."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "volusia-park-boundaries-layer-2",
+      "title": "Volusia County Park Boundaries",
+      "publisher": "Volusia County, Florida",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/2",
+      "layer_id": 2,
+      "source_vintage": "Current vintage not established in this audit",
+      "intended_product": "Sourced public-recreation inventory",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify authoritative portal item and data steward.",
+        "Establish item-level rights and attribution.",
+        "Reconcile Acres and Acreage and do not represent mapped polygons as legal parcels or proof of public access."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "volusia-trails-layer-32",
+      "title": "Volusia County Trails",
+      "publisher": "Volusia County, Florida",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32",
+      "layer_id": 32,
+      "source_vintage": "Current vintage not established in this audit",
+      "intended_product": "Sourced public-recreation inventory",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify authoritative portal item and data steward.",
+        "Establish rights and required attribution.",
+        "Validate status vocabulary, provenance, length fields, continuity, and access only after authorized record inspection."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "volusia-votran-stops-layer-33",
+      "title": "Volusia County VOTRAN Bus Stops (derived layer)",
+      "publisher": "Volusia County GIS / VOTRAN attribution shown in layer metadata",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/33",
+      "layer_id": 33,
+      "source_vintage": "Layer description states downloaded 2023-02",
+      "intended_product": "Dated transit context; not a current stop feed",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify applicable terms and rights holder for the derived layer.",
+        "Do not use as current service information; evaluate official current GTFS separately.",
+        "Validate stop IDs, coordinates, station relationships, and wheelchair_boarding semantics if use is authorized."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "volusia-votran-routes-layer-37",
+      "title": "Volusia County VOTRAN Bus Routes (derived layer)",
+      "publisher": "Volusia County GIS / VOTRAN attribution shown in layer metadata",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/37",
+      "layer_id": 37,
+      "source_vintage": "Layer description states downloaded 2023-02",
+      "intended_product": "Dated transit context; not current scheduled-service proof",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify applicable terms and rights holder for the derived layer.",
+        "Do not use as proof of current route, trips, calendar, direction, or frequency.",
+        "Validate derived geometry against a rights-cleared current GTFS version if applicable."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "volusia-trail-features-layer-30",
+      "title": "Volusia County Trail Features (semantics unresolved)",
+      "publisher": "Volusia County, Florida",
+      "service_url": "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/30",
+      "layer_id": 30,
+      "source_vintage": "Current vintage not established in this audit",
+      "intended_product": "Excluded from trail inventory pending semantic review",
+      "decision": "REJECTED",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Metadata describes County and City parks despite layer name; do not treat as trailheads.",
+        "Only reconsider after record-level evidence establishes semantics and rights are reviewed independently."
+      ],
+      "metadata_review_only": true
+    },
+    {
+      "id": "votran-official-gtfs",
+      "title": "VOTRAN official GTFS feed (current feed not yet captured)",
+      "publisher": "VOTRAN",
+      "service_url": "https://www.votran.org/documents-data/",
+      "layer_id": null,
+      "source_vintage": "Official index lists GTFS effective 2026-10-04; archive not captured",
+      "intended_product": "Current transit context, subject to feed validation",
+      "decision": "BLOCKED_PENDING_REVIEW",
+      "terms_url": null,
+      "terms_evidence": [],
+      "reviewed_at": "2026-10-25",
+      "reviewer": "ZQM Observatory documentation review",
+      "permitted_uses": {
+        "automated_capture": null,
+        "transformation": null,
+        "spatial_join": null,
+        "public_display": null,
+        "raw_redistribution": null,
+        "derived_redistribution": null
+      },
+      "required_attribution": null,
+      "unresolved_questions": [
+        "Identify the exact official downloadable feed URL and its license/terms before download.",
+        "Capture archive immutably with retrieval timestamp and SHA-256 only after permitted scope is established.",
+        "Validate feed dates, required files, and referential integrity before current-service claims."
+      ],
+      "metadata_review_only": true
+    }
+  ]
+}

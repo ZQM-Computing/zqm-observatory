@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "name": "synthetic-places",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"id": "place-002", "name": "Synthetic Green", "category": "park"},
+      "geometry": {"type": "Point", "coordinates": [-81.1, 29.0]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "place-001", "name": "Example Commons", "category": "public-space"},
+      "geometry": {"type": "Point", "coordinates": [-81.2, 29.1]}
+    },
+    {
+      "type": "Feature",
+      "properties": {"id": "place-003", "name": "Imaginary Library", "category": "library"},
+      "geometry": {"type": "Point", "coordinates": [-81.0, 29.2]}
+    }
+  ]
+}
