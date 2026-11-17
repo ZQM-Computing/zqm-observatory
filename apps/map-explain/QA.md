@@ -8,12 +8,17 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 64 passed, none skipped; includes recovery and IndexedDB transaction regressions |
+| TypeScript/core regression tests | 77 passed, none skipped; includes durable sync, response contracts, recovery and IndexedDB regressions |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
-| Private-service/GIS tests | 16 passed, none skipped |
-| Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
+| Private-service/GIS tests | 17 passed, none skipped |
+| Optional client/service integration | Passed with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
+| Frontend dependency audit | Blocked: 4 high-severity entries from one unpatched picomatch advisory; runtime-only audit has 0 findings |
 | Existing Observatory governance tests | 167 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
+
+The [dependency audit record](../../docs/dependency-audit-2026-11-17.md) supersedes
+the earlier clean audit result. Functional test/build success does not clear this
+security gate; the durable-sync PR remains a draft pending remediation and CI.
 
 Core checks include known geodesic distance, threshold/weight semantics, strict
 query rejection, layer-name escaping and overlap, Polygon holes, known Mercator
@@ -137,6 +142,32 @@ tested in the browser. Recovery copies are local convenience copies, not durable
 backups or a substitute for export.
 
 ![Local recovery copies beside the restored project map](docs/qa/project-recovery.jpg)
+
+## Durable private uploads — November 17, 2026
+
+Thirteen additional app regression groups verify that the upload snapshot is
+durable before any request, a lost reply or failed local acknowledgement remains
+retryable after a fresh database read, competing tabs cannot create independent
+requests from one local revision, and later edits stay queued. Tests reject
+malformed/foreign responses, incorrect successful content or revision, unsafe
+revision numbers, malformed pending metadata and persisted credential fields.
+Key-order-only changes no longer create false processing-step merge conflicts.
+
+The optional integration command starts an isolated Python service with real
+SQLite and uses the production client/controller with an in-memory IndexedDB
+implementation. It consumes one accepted response, simulates a lost reply,
+reloads local state, and confirms the same request without a duplicate server
+revision. A separate push confirms later edits. No token is persisted.
+
+The real HTTP check also uploads an exact 8,000,000-byte synthetic document. A
+service regression reproduced the former early rejection and now verifies the
+bounded upload wrapper, identical retry and GET, rejection of a document one
+byte too large, and unchanged prep request limits. No real source is collected.
+
+The existing trusted Windows workflow includes this integration command after
+its Python service checks. Runner completion remains separate from local results.
+This does not claim an authenticated browser push/pull/conflict session or a
+physical browser crash/eviction test.
 
 ## Verification limits
 

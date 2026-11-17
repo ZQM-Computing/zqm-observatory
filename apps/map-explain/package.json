@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --host 0.0.0.0",
-    "test": "tsc -p tsconfig.test.json && node --test .test-build/tests/*.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test .test-build/tests/*.test.js",
+    "test:sync-service": "tsc -p tsconfig.test.json && node tests/private-sync.integration.mjs"
   },
   "dependencies": {
     "lucide-react": "0.510.0",

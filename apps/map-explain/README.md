@@ -19,6 +19,13 @@ npm run build
 npm run dev
 ```
 
+For the optional client/service integration check, install Python 3.11+ and run
+`npm run test:sync-service`. `OBSERVATORY_TEST_PYTHON` can select its interpreter.
+This check starts its own loopback server and temporary SQLite database using
+synthetic fixtures; no GIS wheels, live credentials, or running private service
+are required. It simulates a lost reply and verifies retry/reload behavior and
+an 8 MB project upload.
+
 The browser workflows work without paid APIs, an external basemap, or a server.
 The Vite development server proxies `/api` to the optional private service on
 port 8789. See the [private service setup](../../services/observatory/README.md)
@@ -145,8 +152,29 @@ conflicting values. Independent same-name layers produce a naming conflict: choo
 which side keeps the original name; both datasets remain and the other name gets
 a numbered suffix. Applying a merge saves locally; a later push confirms a new
 shared revision. Local save conflicts require reloading; unsubmitted form values
-remain visible so they can be copied before reload. Retry snapshots are reused
-within the open session, and acknowledgements preserve later queued edits.
+remain visible so they can be copied before reload.
+
+Before an upload starts, its exact project snapshot, base revision, operation ID,
+and sent-operation list are saved in IndexedDB. If the reply is lost or the local
+acknowledgement cannot be saved, **Retry unconfirmed upload** reuses those values,
+including after reload. Re-enter the workspace token; it is never part of the
+saved retry. Newer edits stay queued until the earlier upload is confirmed, then
+need a separate push. Fetching a shared project is disabled while a retry is
+unconfirmed. No upload runs automatically in the background.
+
+Only an acknowledgement for the requested project, exact submitted JSON content,
+and next server revision clears the sent operations. Object member ordering does
+not affect acknowledgement or merge equality; coordinate/array order still
+matters. Invalid or unrelated responses keep the retry and local edits intact.
+A validated revision conflict ends the retry and enters explicit review.
+
+Opening a different project, applying a reviewed merge, deleting the server copy,
+or resetting device data clears the relevant retry. The incoming-project review
+warns before stopping an unconfirmed upload: it may already exist on the server.
+Recovery copies and exported project bundles preserve documents, without sync
+receipts or tokens. Browser eviction/site-data removal can erase retry data; server
+receipts retain only the latest 20 revisions. A lost or expired receipt may require
+explicit shared-copy review rather than confirmation.
 
 ## Evidence and release boundary
 

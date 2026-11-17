@@ -52,6 +52,11 @@ jobs:
         run: |
           & ./.venv/Scripts/python.exe -m unittest discover -s tests -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify durable client-to-service sync and full-size project upload
+        run: |
+          $env:OBSERVATORY_TEST_PYTHON = (Resolve-Path '../../services/observatory/.venv/Scripts/python.exe').Path
+          npm run test:sync-service
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Clean isolated checkout
         if: always()
         working-directory: ${{ github.workspace }}

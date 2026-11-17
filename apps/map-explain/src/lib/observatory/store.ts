@@ -1,4 +1,5 @@
 import { clone, validateProject, type LocalState } from "./model.js";
+import { validatePendingSend } from "./sync.js";
 import {
   archiveProject,
   readRecoveryCopies,
@@ -35,7 +36,10 @@ export async function loadLocal(): Promise<LocalState | null> {
     tx.oncomplete = () => {
       db.close();
       try {
-        if (result) validateProject(result.project);
+        if (result) {
+          validateProject(result.project);
+          validatePendingSend(result);
+        }
         resolve(result);
       } catch (e) {
         reject(e);
@@ -54,6 +58,7 @@ export async function saveLocal(
   options: SaveOptions = {},
 ): Promise<RecoveryCopy[] | null> {
   validateProject(state.project);
+  validatePendingSend(state);
   if (options.archiveReason && options.clearRecovery)
     throw new Error("Cannot preserve and delete recovery copies in one save.");
   const db = await database();

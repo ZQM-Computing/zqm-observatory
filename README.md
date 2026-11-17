@@ -54,6 +54,8 @@ portable draft bundles, and optional authenticated SQLite revision sync.
 Opening another project retains a local recovery copy, with review/export
 controls in Project & Sync. Up to three copies fit within a combined 12 MB;
 restoring creates a new project identity. Export files for durable backup.
+Private uploads retain their exact retry snapshot across reloads; confirmation
+preserves newer local edits for a later push. Tokens remain memory-only.
 The [private Python service](services/observatory/README.md) adds bounded vector
 format conversion and conflict-aware shared projects. No paid API or new
 recurring service is required. The [build-out mapping](docs/observatory-workspaces-build.md)

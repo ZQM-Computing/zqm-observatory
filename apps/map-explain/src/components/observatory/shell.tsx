@@ -12,7 +12,6 @@ import {
   WifiOff,
 } from "lucide-react";
 import {
-  acknowledge,
   change,
   clone,
   demoState,
@@ -34,19 +33,14 @@ import {
   recoveredProject,
   type RecoveryCopy,
 } from "../../lib/observatory/recovery";
-import {
-  pull,
-  push,
-  request,
-  SyncConflict,
-  type Remote,
-} from "../../lib/observatory/api";
+import { pull, request, type Remote } from "../../lib/observatory/api";
 import {
   mergeProjects,
   type Choices,
   type MergeConflict,
 } from "../../lib/observatory/merge";
 import { download, projectBundle } from "../../lib/observatory/export";
+import { sendProject } from "../../lib/observatory/sync";
 import type { Analysis } from "../../lib/observatory/analysis";
 import { Canvas, type DrawMode } from "./canvas";
 import {
@@ -66,13 +60,6 @@ const TABS = [
   { name: "Map Workspace", icon: Layers, detail: "Draw & collaborate" },
 ] as const;
 type Tab = (typeof TABS)[number]["name"] | "Project & Sync";
-type Send = {
-  project: Project;
-  localRevision: number;
-  baseRevision: number;
-  ops: string[];
-  operation: string;
-};
 
 export function Observatory() {
   const [state, setState] = useState<LocalState | null>(null),
@@ -112,7 +99,6 @@ export function Observatory() {
       conflicts: MergeConflict[];
     } | null>(null),
     [choices, setChoices] = useState<Choices>({});
-  const pendingSend = useRef<Send | null>(null);
   const incomingReview = useRef<HTMLElement | null>(null);
   const [recoveryCopies, setRecoveryCopies] = useState<RecoveryCopy[]>([]),
     [recoveryError, setRecoveryError] = useState("");
@@ -148,6 +134,10 @@ export function Observatory() {
         current.current = loaded;
         setState(loaded);
         setProjectName(loaded.project.name);
+        if (loaded.pendingSend)
+          show(
+            "An unconfirmed upload is saved on this device. Open Project & Sync, enter the private token again, and retry it before sending newer edits.",
+          );
       }
     })().catch((e) => {
       if (live) setFatal(String(e instanceof Error ? e.message : e));
@@ -217,7 +207,6 @@ export function Observatory() {
     setDraft([]);
     setDraw("none");
     setFilter("");
-    pendingSend.current = null;
   }
   function reviewMerge(remote: Remote, local: LocalState) {
     if (!local.base)
@@ -240,47 +229,21 @@ export function Observatory() {
     );
   }
   async function send() {
-    const local = current.current!;
-    if (!pendingSend.current)
-      pendingSend.current = {
-        project: clone(local.project),
-        localRevision: local.revision,
-        baseRevision: local.remoteRevision,
-        ops: local.outbox.map((o) => o.id),
-        operation: id(),
-      };
-    const snapshot = pendingSend.current;
-    try {
-      const remote = await push(
-        snapshot.project,
-        snapshot.baseRevision,
-        snapshot.operation,
-        token,
-      );
-      const latest = current.current!;
-      await persist(
-        acknowledge(
-          latest,
-          snapshot.localRevision,
-          snapshot.ops,
-          remote.revision,
-          snapshot.project,
-        ),
-        latest.revision,
-      );
-      pendingSend.current = null;
-      setRemoteId(local.project.id);
-      show(
-        `Private server confirmed revision ${remote.revision}. ${current.current!.outbox.length} later local changes remain queued.`,
-      );
-    } catch (e) {
-      if (e instanceof SyncConflict) {
-        pendingSend.current = null;
-        reviewMerge(e.current, current.current!);
-      } else throw e;
+    const outcome = await sendProject(() => current.current!, persist, token);
+    if (outcome.kind === "conflict") {
+      reviewMerge(outcome.remote, current.current!);
+      return;
     }
+    setRemoteId(current.current!.project.id);
+    show(
+      `Private server confirmed revision ${outcome.remote.revision}. ${current.current!.outbox.length} later local changes remain queued.`,
+    );
   }
   async function fetchShared() {
+    if (current.current!.pendingSend)
+      throw new Error(
+        "Retry the unconfirmed upload before fetching a shared project. Newer local edits will stay queued.",
+      );
     const remote = await pull(remoteId.trim(), token),
       local = current.current!;
     if (
@@ -312,6 +275,7 @@ export function Observatory() {
         ...local,
         base: clone(merging.remote.document),
         remoteRevision: merging.remote.revision,
+        pendingSend: null,
       },
       "Merged shared project for review",
       (p) => Object.assign(p, resolved.project),
@@ -432,7 +396,10 @@ export function Observatory() {
             <CheckCircle2 size={13} /> Saved locally · r{state.revision}
           </span>
           <button onClick={() => switchTab("Project & Sync")}>
-            {state.outbox.length} changes to sync <ArrowUpRight size={13} />
+            {state.pendingSend
+              ? "Unconfirmed upload"
+              : `${state.outbox.length} changes to sync`}{" "}
+            <ArrowUpRight size={13} />
           </button>
         </div>
       </div>
@@ -666,13 +633,23 @@ export function Observatory() {
                   workspace; per-person accounts and access roles are not
                   implemented.
                 </p>
+                {state.pendingSend && (
+                  <p className="small" role="status">
+                    An earlier upload is saved for confirmation, including after
+                    reload. Retry sends that exact snapshot; newer local edits
+                    stay queued for a later push. Enter the private token again
+                    after reload. Retry before fetching a shared copy.
+                  </p>
+                )}
                 <div className="actions">
                   <button
                     className="primary"
                     disabled={busy || !online || !token}
                     onClick={() => perform(send)}
                   >
-                    Push local project
+                    {state.pendingSend
+                      ? "Retry unconfirmed upload"
+                      : "Push local project"}
                   </button>
                   <button
                     disabled={busy || !token}
@@ -697,7 +674,9 @@ export function Observatory() {
                 </Field>
                 <div className="actions">
                   <button
-                    disabled={busy || !online || !token}
+                    disabled={
+                      busy || !online || !token || Boolean(state.pendingSend)
+                    }
                     onClick={() => perform(fetchShared)}
                   >
                     Fetch & review shared project
@@ -736,6 +715,8 @@ export function Observatory() {
                     history. A local recovery copy is saved in the same
                     transaction. Export the current project for a durable
                     backup.
+                    {state.pendingSend &&
+                      " Opening this also stops retrying the unconfirmed upload. It may already exist on the private server; the recovery copy contains the document, without its upload receipt."}
                   </p>
                   <div className="actions">
                     <button
@@ -859,6 +840,7 @@ export function Observatory() {
                           revision: latest.revision + 1,
                           remoteRevision: 0,
                           base: null,
+                          pendingSend: null,
                         },
                         latest.revision,
                       );
