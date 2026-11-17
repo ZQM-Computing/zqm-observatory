@@ -4,6 +4,7 @@ import {
   id,
   isRecord,
   makeLayer,
+  MAX_BYTES,
   now,
   positions,
   type Feature,
@@ -97,13 +98,19 @@ export function prepare(
   text: string,
   name: string,
   options: PrepOptions = DEFAULT_PREP,
+  inputKind: "browser" | "private-output" = "browser",
 ): PrepResult {
   const diagnostics: string[] = [];
   const features: Feature[] = [];
   let input: unknown[];
   let rejected = 0;
-  if (new TextEncoder().encode(text).byteLength > 2_000_000)
-    throw new Error("Browser Data Prep accepts files up to 2 MB.");
+  const limit = inputKind === "private-output" ? MAX_BYTES : 2_000_000;
+  if (new TextEncoder().encode(text).byteLength > limit)
+    throw new Error(
+      inputKind === "private-output"
+        ? "Prepared output exceeds the 8 MB project limit."
+        : "Browser Data Prep accepts files up to 2 MB.",
+    );
   if (/\.csv$/i.test(name)) {
     if (options.sourceCrs !== "EPSG:4326")
       throw new Error(
@@ -132,26 +139,22 @@ export function prepare(
       /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(s.trim())
         ? Number(s)
         : NaN;
-    input = rows
-      .slice(1)
-      .map((row, i) =>
-        row.length !== headers.length
-          ? null
-          : {
-              type: "Feature",
-              id: `row-${i + 1}`,
-              properties: Object.fromEntries(
-                headers.map((h, j) => [h, row[j]]),
-              ),
-              geometry: {
-                type: "Point",
-                coordinates: [
-                  number(row[longitude[0]]),
-                  number(row[latitude[0]]),
-                ],
-              },
+    input = rows.slice(1).map((row, i) =>
+      row.length !== headers.length
+        ? null
+        : {
+            type: "Feature",
+            id: `row-${i + 1}`,
+            properties: Object.fromEntries(headers.map((h, j) => [h, row[j]])),
+            geometry: {
+              type: "Point",
+              coordinates: [
+                number(row[longitude[0]]),
+                number(row[latitude[0]]),
+              ],
             },
-      );
+          },
+    );
   } else {
     const parsed: unknown = JSON.parse(text);
     if (!isRecord(parsed) || "crs" in parsed)

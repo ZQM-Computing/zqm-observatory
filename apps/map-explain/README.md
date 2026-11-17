@@ -63,7 +63,9 @@ Subject and target follow their order in the question. Unsupported or compound
 requests are rejected. The local parser is deterministic; it does not call an
 LLM, infer additional filters, or claim general natural-language understanding.
 Distances use spherical straight-line haversine calculations, not network travel
-time. Counts support Polygon holes; MultiPolygon counts are not implemented.
+time. Counts use the first named layer’s Point features and the second named layer’s
+Polygon features, including holes. Other geometries are excluded explicitly;
+MultiPolygon counts are not implemented.
 Thresholds, units, and ranking direction come from the matched question grammar;
 words or distances inside a layer name do not change the operation. Demand scores
 normalize against the actual maximum, including fractional weights; all-zero
@@ -72,7 +74,9 @@ zones may count points more than once; boundary semantics require review.
 
 ## Data limits and lineage
 
-- Browser preparation: 2 MB; private preparation: 4 MB; 2,000 input features.
+- Browser preparation: 2 MB; private source files: 4 MB; 2,000 input features.
+  Prepared private GeoJSON may use the project’s 8 MB budget; adding it must still
+  fit the full project. Larger conversion results are rejected, not truncated.
   Over-limit sources are rejected rather than truncated.
 - Project: 8 MB, 30 layers, 2,000 features and 40,000 coordinates per layer.
   One geometry is limited to 20,000 coordinates.

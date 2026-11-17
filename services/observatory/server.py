@@ -1,6 +1,7 @@
 """Private, same-origin Observatory prototype. Local bind; no anonymous data API."""
 from __future__ import annotations
 import argparse
+from contextlib import contextmanager
 import hashlib
 import hmac
 import json
@@ -19,7 +20,7 @@ IDENTITY = re.compile(r"^[a-zA-Z0-9_-]{1,80}$")
 
 
 def canonical(value):
-    return json.dumps(value, separators=(",", ":"), sort_keys=True, allow_nan=False)
+    return json.dumps(value, separators=(",", ":"), sort_keys=True, allow_nan=False, ensure_ascii=False)
 
 
 def safe_json(value, depth=0):
@@ -118,8 +119,14 @@ class Store:
             CREATE TABLE IF NOT EXISTS versions (id TEXT, revision INTEGER, document TEXT, PRIMARY KEY(id,revision));
             CREATE TABLE IF NOT EXISTS operations (id TEXT, operation TEXT, digest TEXT, revision INTEGER, document TEXT, PRIMARY KEY(id,operation));
             """)
+    @contextmanager
     def connect(self):
-        return sqlite3.connect(self.path, timeout=10)
+        db = sqlite3.connect(self.path, timeout=10)
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
     def get(self, project_id):
         with self.connect() as db:
             row = db.execute("SELECT revision,document FROM projects WHERE id=?", (project_id,)).fetchone()
@@ -135,7 +142,10 @@ class Store:
             prior = db.execute("SELECT digest,revision,document FROM operations WHERE id=? AND operation=?", (project_id, operation)).fetchone()
             if prior:
                 if prior[0] != digest:
-                    raise ValueError("An operation ID cannot be reused for different content.")
+                    # Preserve receipts written before canonical JSON retained UTF-8.
+                    legacy = json.dumps([expected, document], separators=(",", ":"), sort_keys=True, allow_nan=False, ensure_ascii=True)
+                    if prior[0] != hashlib.sha256(legacy.encode()).hexdigest():
+                        raise ValueError("An operation ID cannot be reused for different content.")
                 return 200, {"revision": prior[1], "document": json.loads(prior[2])}
             current = db.execute("SELECT revision,document FROM projects WHERE id=?", (project_id,)).fetchone()
             if (current[0] if current else 0) != expected:

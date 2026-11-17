@@ -8,9 +8,9 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 49 passed, none skipped; includes the latest three parent-PR fixes |
+| TypeScript/core regression tests | 51 passed, none skipped; includes the latest three parent-PR fixes |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
-| Private-service/GIS tests | 12 passed, none skipped |
+| Private-service/GIS tests | 15 passed, none skipped |
 | Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
 | Existing Observatory governance tests | 149 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
@@ -89,6 +89,27 @@ The new browser check edited only an unsubmitted synthetic draft; switching
 between features retained original demand values 42 and 18.
 
 ![Attribute draft isolated from the next selected feature](docs/qa/attribute-draft-isolation.jpg)
+
+## Workflow continuity corrections — November 17, 2026
+
+- Layer checkbox changes capture the selected value before the asynchronous save.
+  Browser QA hid Warehouse, verified its map feature and legend disappeared,
+  reloaded and verified the unchecked state persisted, then exercised both toggle
+  directions. The feature remains in the project for analysis and export.
+- Count inputs follow subject/target order even when both layers contain points
+  and polygons. Regressions verify forward and reversed roles and explicit
+  exclusion of unrelated geometry types.
+- Private conversion output has an 8 MB prepared-output ceiling; the separate
+  browser upload ceiling remains 2 MB and private source files remain 4 MB.
+  A 2.1 MB attribute survives preparation and project validation without truncation.
+- Private projects measure UTF-8 JSON rather than ASCII escape expansion. A
+  4.2 MB CJK project saves and reloads over authenticated HTTP. Oversized input
+  remains rejected. Receipts from the earlier ASCII-escaped digest remain
+  idempotent; reuse with changed content still fails.
+- SQLite contexts commit or roll back and always close their handles, with a
+  regression checking rollback and closure for portable file cleanup.
+
+![Saved visibility state with Warehouse hidden from the map](docs/qa/layer-visibility.jpg)
 
 ## Verification limits
 

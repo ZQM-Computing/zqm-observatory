@@ -1,7 +1,10 @@
 import base64
 import copy
 import io
+import hashlib
 import json
+import sqlite3
+import http.client
 from pathlib import Path
 import sys
 import tempfile
@@ -40,7 +43,7 @@ class ServiceTests(unittest.TestCase):
     def tearDown(self):
         self.server.shutdown(); self.server.server_close(); self.thread.join(); self.temp.cleanup()
     def call(self, path, body=None, method=None, token=TOKEN, headers=None):
-        req = Request(self.url + path, data=json.dumps(body).encode() if body is not None else None, method=method, headers={"Authorization": "Bearer " + token, "Content-Type": "application/json", **(headers or {})})
+        req = Request(self.url + path, data=json.dumps(body, ensure_ascii=False).encode() if body is not None else None, method=method, headers={"Authorization": "Bearer " + token, "Content-Type": "application/json", **(headers or {})})
         try:
             with urlopen(req, timeout=5) as response: return response.status, response.read(), response.headers
         except HTTPError as e: return e.code, e.read(), e.headers
@@ -86,6 +89,49 @@ class ServiceTests(unittest.TestCase):
         with self.store.connect() as db:
             self.assertEqual(db.execute("SELECT count(*) FROM versions").fetchone()[0], 20)
             self.assertEqual(db.execute("SELECT count(*) FROM operations").fetchone()[0], 20)
+    def test_unicode_projects_use_utf8_size_and_round_trip_over_http(self):
+        doc = document(); doc["layers"][0]["features"][0]["properties"]["description"] = "界" * 1_400_000
+        utf8 = json.dumps(doc, ensure_ascii=False).encode()
+        self.assertLess(len(utf8), 8_000_000)
+        self.assertGreater(len(json.dumps(doc).encode()), 8_000_000)
+        body = {"document": doc, "expected_revision": 0, "operation_id": "unicode-save"}
+        status, raw, _ = self.call("/api/projects/test-project", body, "PUT")
+        self.assertEqual(status, 200); self.assertIn("界".encode(), raw)
+        fetched = self.call("/api/projects/test-project")
+        self.assertEqual(fetched[0], 200)
+        saved = json.loads(fetched[1])["document"]
+        self.assertEqual(hashlib.sha256(json.dumps(saved,sort_keys=True).encode()).hexdigest(),hashlib.sha256(json.dumps(doc,sort_keys=True).encode()).hexdigest())
+        oversized = copy.deepcopy(doc); oversized["layers"][0]["features"][0]["properties"]["description"] = "界" * 2_700_000
+        with self.assertRaises(ValueError): validate_project(oversized)
+        # Send only oversized headers: early rejection need not drain an 8 MB body.
+        client = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+        try:
+            client.request("PUT", "/api/projects/test-project", headers={"Authorization":"Bearer "+TOKEN,"Content-Type":"application/json","Content-Length":"8100000"})
+            response = client.getresponse(); self.assertEqual(response.status, 400); response.read()
+        finally: client.close()
+        self.assertEqual(self.store.get("test-project")["revision"], 1)
+
+    def test_receipts_from_ascii_escaped_json_remain_valid_after_utf8_upgrade(self):
+        doc = document(); doc["name"] = "Café 地図"
+        self.store.put("test-project", 0, "legacy-retry", doc)
+        legacy = json.dumps([0,doc],separators=(",",":"),sort_keys=True,allow_nan=False,ensure_ascii=True)
+        with self.store.connect() as db:
+            db.execute("UPDATE operations SET digest=? WHERE id=? AND operation=?",(hashlib.sha256(legacy.encode()).hexdigest(),"test-project","legacy-retry"))
+        body = {"document":doc,"expected_revision":0,"operation_id":"legacy-retry"}
+        result = self.call("/api/projects/test-project",body,"PUT")
+        self.assertEqual(result[0],200);self.assertEqual(json.loads(result[1])["revision"],1)
+        body["document"]["name"] = "Different"
+        self.assertEqual(self.call("/api/projects/test-project",body,"PUT")[0],400)
+
+    def test_database_context_rolls_back_and_closes_its_handle(self):
+        self.store.put("test-project",0,"initial",document())
+        with self.assertRaises(RuntimeError):
+            with self.store.connect() as db:
+                db.execute("UPDATE projects SET revision=99 WHERE id='test-project'")
+                raise RuntimeError("abort test transaction")
+        self.assertEqual(self.store.get("test-project")["revision"],1)
+        with self.assertRaises(sqlite3.ProgrammingError): db.execute("SELECT 1")
+
     def test_http_private_conversion_and_export(self):
         body = payload("points.geojson", json.dumps({"type": "FeatureCollection", "features": [feature()]}).encode(), source_crs="EPSG:4326")
         result = self.call("/api/prep", body, "POST"); self.assertEqual(result[0], 200, result[1])
