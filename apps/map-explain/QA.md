@@ -8,11 +8,11 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 51 passed, none skipped; includes the latest three parent-PR fixes |
+| TypeScript/core regression tests | 63 passed, none skipped; includes recovery and IndexedDB transaction regressions |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
-| Private-service/GIS tests | 15 passed, none skipped |
+| Private-service/GIS tests | 16 passed, none skipped |
 | Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
-| Existing Observatory governance tests | 149 passed; source-rights register and product structure checks passed |
+| Existing Observatory governance tests | 167 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
 
 Core checks include known geodesic distance, threshold/weight semantics, strict
@@ -110,6 +110,32 @@ between features retained original demand values 42 and 18.
   regression checking rollback and closure for portable file cleanup.
 
 ![Saved visibility state with Warehouse hidden from the map](docs/qa/layer-visibility.jpg)
+
+## Project replacement recovery — November 17, 2026
+
+Opening another project archives the replaced document in the same IndexedDB
+transaction. Twelve additional regression groups cover immutable copies,
+three-copy/12 MB pruning, Unicode byte sizes, fresh recovery identities, 8 MB
+boundary behavior, invalid recovery metadata, ordinary saves, competing tab
+replacements, write/deletion rollback, revision-guarded deletion, and full clear.
+A pinned development-only IndexedDB implementation runs these storage tests in
+Node; it is not included in the production bundle.
+
+Desktop QA opened a generated synthetic bundle, reloaded, and verified the old
+project remained listed. Its exported recovery file was byte-identical to the
+pre-replacement export. Reviewing a recovered copy focused the incoming review;
+opening it preserved all layers, comments, source/processing notes and the hidden
+Warehouse state, added recovery history, assigned a fresh ID, and kept shared
+revision 0. The replacement was itself retained, and the restored ID/copies
+survived another reload. Publication remained blocked.
+
+The browser deletion confirmation was cancelled; both copies remained. Actual
+deletion and storage-failure rollback are verified by automated storage tests.
+Physical storage exhaustion/eviction and a corrupted active workspace were not
+tested in the browser. Recovery copies are local convenience copies, not durable
+backups or a substitute for export.
+
+![Local recovery copies beside the restored project map](docs/qa/project-recovery.jpg)
 
 ## Verification limits
 
