@@ -1,34 +1,16 @@
-# ZQM Observatory — MapExplain
+# ZQM Observatory workspaces
 
-**Ask about places. See the map, sources, and steps.**
+**Prepare data. Ask about places. Capture observations. Compare coverage. Work on one map.**
 
-**Traceable location analysis.** MapExplain is the question-to-map workspace within **ZQM Observatory**,
-from **ZQM Computing**. Ask a supported location question and compare locations,
-find illustrative coverage gaps, or inspect ranked results alongside the map,
-source notes, calculation steps, and limitations. This is a **synthetic GIS
-engineering demonstration**, not a released Observatory data product or a live
-service. It belongs to ZQM Computing; it does not integrate ZQM Labs games.
+The five integrated workspaces belong to **ZQM Observatory**, by **ZQM Computing**.
+MapExplain remains the provisional name for traceable location questions. This is
+an engineering prototype at Stage 0, not a deployed service or an approved data
+product. Starter Providence records and boundaries are invented. ZQM Labs is a
+separate organization and is not integrated here.
 
-## Product identity
+## Run locally
 
-| Level | Name | Purpose |
-| --- | --- | --- |
-| Publisher | ZQM Computing | Geospatial tools and engineering |
-| Platform | ZQM Observatory | Traceable place-based research and analysis |
-| Feature | MapExplain | Ask location questions; inspect maps, results, and methods |
-
-Use **ZQM Observatory — MapExplain** for the full product/feature name,
-**MapExplain** inside the Observatory interface, and **by ZQM Computing**
-when publisher context is needed. Keep the descriptive value statement alongside
-first mentions. Demo labeling and evidence limits remain visible separately.
-
-The working name follows a [competitor and naming screen](../../docs/observatory-competitive-landscape.md).
-It is a provisional development name, not a statement of trademark, domain, or
-social-handle clearance. No separate domain or paid brand service is required.
-
-## Run and verify
-
-Requires Node.js 22.12 or newer and npm. From this directory:
+Requires Node.js 22.12+ and npm. From this directory:
 
 ```sh
 npm ci --ignore-scripts
@@ -37,79 +19,117 @@ npm run build
 npm run dev
 ```
 
-`npm run preview` serves the built `dist/` output for local review. The relative
-asset base also supports reviewing the build under a static subdirectory. No
-deployment workflow, credentials, database, paid API, or source collection is
-configured by this application.
+The browser workflows work without paid APIs, an external basemap, or a server.
+The Vite development server proxies `/api` to the optional private service on
+port 8789. See the [private service setup](../../services/observatory/README.md)
+for format conversion and shared-project sync. `npm run preview` serves the
+production bundle; its static preview has no private API proxy.
 
-## What works
+## Five connected workspaces
 
-- Fixed English question patterns for sample attribute rankings and filters,
-  nearest-place distances, point containment, counts by invented neighborhood,
-  and illustrative coverage scores.
-- Interactive local SVG map, map/list selection, layer toggles, zoom, and a
-  fit-all control. The map has no external basemap or tile requests.
-- CSV and RFC 7946 Point GeoJSON ingestion, bounded to 2 MB and the first 2,000
-  valid points. CSV coordinate columns are assumed to be WGS84 degrees; that
-  assumption cannot establish that the source was actually georeferenced correctly.
-- Local-only queries, files, and recent question history. Reloading clears them.
-- CSV, GeoJSON, and copied summaries with explicit unverified-demo status,
-  interpretation, limitations, and no publication authorization.
+| Workspace | Working behavior |
+| --- | --- |
+| MapExplain | Exact layer-name questions: show a layer, within/beyond distance, nearest/farthest ranking, Point counts in Polygon zones; calculated records, map, methods, and exports |
+| Data Prep | Local CSV, GeoJSON, basic KML and GPX; schema/geometry preview, explicit normalization, ring closure and rejected-record handling; EPSG:4326/3857 conversion |
+| Field Collection | Required and configurable reference fields, conditional urgent follow-up, manual/GPS point capture, device-reported accuracy, resized photos, local save and review queue |
+| Coverage Analysis | Demand/supply layers, radius, demand weights, configurable scoring weights, complete ranked output, saved supply scenarios and transparent formula |
+| Map Workspace | Layer visibility/color, attribute text display filter, point/line/polygon drawing, attribute edits, review notes, deletion with local restoration, CSV/GeoJSON exports |
 
-Examples are built into the interface. Distances from 50 m through 100 km are
-accepted. Decimal thresholds retain their values. Attribute comparisons support
-strict under/over and inclusive at-most/at-least semantics.
+All five use the same project layers. Prepared data and field observations can
+feed questions and coverage. Drawn sites can form a new supply scenario. Saving
+an analysis turns it into another project layer with input-source lineage.
 
-## Evidence boundaries
+Project & Sync provides portable JSON bundles, local history/restoration, private
+project links, explicit push/pull, queued local changes, and three-way conflict
+review. Sync is manual; there is no background upload or live multiplayer channel.
 
-The Providence neighborhood shapes, demographic values, clinic locations,
-customer records, and warehouse are invented. Some place names resemble real
-places; none establish actual access, conditions, service availability, or
-source permission. See the persistent demo banner and source notes in each answer.
+## Question patterns
 
-Distances are great-circle point-to-point calculations on a spherical Earth.
-Neighborhood access uses a representative centroid, not the nearest boundary.
-Drawn buffer rings use a local approximation, and the SVG map is an illustrative
-equirectangular view, not a survey or authoritative basemap. It is unsuitable for
-global, polar, or antimeridian cartography. Rankings and coverage scores are
-demonstrations, not recommendations to open a real facility.
+Replace these example names with exact names from your project:
 
-The interpreter declines routed travel time, live conditions, census tracts,
-unsupported geography, multi-attribute filters, and distances outside its range.
-It never sends an unmatched question to a model. There is no general natural
-language reasoning, address geocoding, reprojection, polygon upload analysis,
-voice service, cloud persistence, or share-link backend.
+```text
+Show Demand points
+Show Demand points beyond 1000 m of Facilities
+Show Demand points within 1.5 km of Facilities
+Rank Demand points nearest to Facilities
+Rank Demand points farthest from Facilities
+Count Demand points in Neighborhoods
+```
 
-Use synthetic or appropriately permitted public, nonpersonal upload records.
-Files are never committed or sent to an analysis service by this app. Invalid
-uploads clear the previous active upload and derived answer; unsupported geometry
-is dropped rather than silently replaced with an invented centroid. Removing a
-file clears its answer and restores the default synthetic example.
+Subject and target follow their order in the question. Unsupported or compound
+requests are rejected. The local parser is deterministic; it does not call an
+LLM, infer additional filters, or claim general natural-language understanding.
+Distances use spherical straight-line haversine calculations, not network travel
+time. Counts support Polygon holes; MultiPolygon counts are not implemented.
+Coverage uses actual Point geometries, never invented centroids. Overlapping
+zones may count points more than once; boundary semantics require review.
 
-Browser exports are local drafts. They are **not** Observatory product bundles,
-and must not be copied into `data/products/` or treated as approved publications.
-The repository's [source-rights](../../docs/source-rights-review.md),
-[privacy and methods](../../docs/methods.md), and
-[first-product release gates](../../docs/first-product-release-gate.md) still apply.
-Export labels are informational and cannot prevent someone from redistributing a
-downloaded file; human release review remains necessary.
+## Data limits and lineage
 
-## Import and maintenance
+- Browser preparation: 2 MB; private preparation: 4 MB; 2,000 input features.
+  Over-limit sources are rejected rather than truncated.
+- Project: 8 MB, 30 layers, 2,000 features and 40,000 coordinates per layer.
+  One geometry is limited to 20,000 coordinates.
+- Supported project geometry: Point, LineString, Polygon, and Multi variants.
+  Browser checks cover structure, finite values, ranges, and closed rings.
+  GEOS topology checks and other EPSG transformations require private prep.
+- Coordinate CSV requires explicit latitude/longitude columns. Projected CSV
+  needs private prep and its actual source CRS. No geocoding is performed.
+- Private prep also accepts one zipped Shapefile dataset, GeoPackage (explicit
+  layer choice when needed), KML/KMZ and GPX. Unknown CRS is not guessed;
+  mismatches with declared CRS are rejected. Conversion can flatten schemas,
+  generate feature IDs and omit file styling; diagnostics record those limits.
+- Null/empty data and invalid coordinates require explicit rejection handling.
+  Geometry repair requires an explicit option; multipart repair results are
+  retained, and GeometryCollections are rejected for separate review.
+- CSV escapes formula-like cells. Attribute column names are prefixed to avoid
+  colliding with export metadata. CSV/GeoJSON/GPKG and project bundles preserve
+  source/processing notes and blocked publication status.
 
-Adapted from the user-supplied `grok-workspace.zip` on November 16, 2026.
-Archive SHA-256:
-`5735fb863e27e6df0fa15c9d3e7bf92a5e34a2f23ea2902449728326a887221f`.
-The supplied prototype's engine, data, geometry, intent, workspace, and styling were
-adapted into a standalone Vite/React application. The source archive's hosting,
-authentication, database, AI planner, generated art, personal attachments, and
-platform scaffolding are not runtime dependencies of this application.
+## Device storage and offline behavior
 
-Code follows the repository's [Apache 2.0 license](../../LICENSE). Dependencies
-retain their respective licenses, with exact versions recorded in the lockfile.
-No upstream public dataset or data-publication license is asserted by this import.
+Saved documents, up to five previous local documents, and the pending-sync list
+live in IndexedDB for this origin. Records and optional photos persist across
+reloads until replaced, cleared by the user, evicted by the browser, or removed
+with browser site data. Unsaved form fields and analysis previews are not durable.
+Export a project bundle for backup. A successful save is reported only after the
+IndexedDB transaction completes; another tab cannot silently overwrite a newer
+local revision.
 
-CI runs the app's regression tests, TypeScript checks, production build, and
-dependency audit on trusted same-repository changes. It does not deploy or approve
-any data product. The existing Python governance checks remain independent.
-See the [verification record](QA.md) for observed browser behavior and remaining
-device/CI verification.
+The production build installs a service worker that caches its own app shell
+and bundled assets. After a successful online visit, the shell can load with the
+origin unavailable. API responses, records, photos, tokens, and external sources
+are never cached by the service worker. Local records remain in IndexedDB.
+Private sync requires connectivity and an explicit push. GPS and photo capture
+must be initiated by the user; device support and permission affect availability.
+Photos are re-encoded as bounded JPEGs without copying input metadata.
+
+## Private sharing and review
+
+A private link contains only a project ID. Recipients also need the separately
+supplied workspace token and the same private server. Tokens stay in React memory,
+not URLs, project bundles or device storage. Reloading clears the token. This
+prototype has one workspace-wide token; it does not provide individual accounts,
+roles, per-project grants, encrypted local storage, or authoritative audit signing.
+
+Conflicting server revisions produce a review step. Independent entity edits
+merge by ID; geometry arrays stay atomic. Local/shared choices are required for
+conflicting values. Applying a merge saves locally; a later push confirms a new
+shared revision. Local save conflicts require reloading; unsubmitted form values
+remain visible so they can be copied before reload. Retry snapshots are reused
+within the open session, and acknowledgements preserve later queued edits.
+
+## Evidence and release boundary
+
+See [verification](QA.md), the [specification mapping](../../docs/observatory-workspaces-build.md),
+and [competitor/naming research](../../docs/observatory-competitive-landscape.md).
+MapExplain is a provisional name without trademark, domain, or handle clearance.
+No new recurring service is required or purchased.
+
+Imports remain unverified and source rights remain unreviewed. All project and
+export drafts record `publication_authorized: false`. Conversion, a review badge,
+or passing tests do not establish real-world facts, source permission, privacy
+safety, or publication approval. The Observatory's existing release gates apply.
+Voice, general AI questions, network routing, live feeds, enterprise permissions,
+public anonymous sharing, real-time collaboration and production hosting are
+not implemented by this build.

@@ -2,7 +2,7 @@
 
 **ZQM Observatory** is an open-source **geospatial intelligence (GEOINT) and public-data research** project for reproducible mapping, source provenance, geospatial data quality assurance (QA), imagery discovery, and community briefs. It is being built to turn appropriately licensed public information into auditable geographic products—not unsourced claims or private-data aggregation.
 
-**Volusia County, Florida is the proving ground, not the boundary.** The Observatory remains at **Stage 0 / build-out**. This repository does not claim a live map, feed, dashboard, or published data product. The outputs described below are planned capabilities, not deployed services. A local [MapExplain synthetic GIS demo](apps/map-explain/README.md) is available for engineering review; it does not establish a live service or verified product.
+**Volusia County, Florida is the proving ground, not the boundary.** The Observatory remains at **Stage 0 / build-out**. This repository does not claim a live map, feed, dashboard, or published data product. The outputs described below are planned capabilities, not deployed services. The local [five-workspace prototype](apps/map-explain/README.md) is available for engineering review; it does not establish a deployed service or verified product.
 
 ## Mission and focus
 
@@ -19,7 +19,7 @@ Conservation and environmental conditions are in scope, but they are one use cas
 
 ## Status: what exists and what does not
 
-**In version control today:** repository standards, source-governance documentation, metadata-only source preflight tooling, an item-level Volusia source audit, a machine-readable source-rights register, data-product bundle validation standards, and the local MapExplain synthetic demonstration.
+**In version control today:** repository standards, source-governance documentation, metadata-only source preflight tooling, an item-level Volusia source audit, a machine-readable source-rights register, data-product bundle validation standards, and five integrated local spatial workspaces with an optional private conversion/sync service.
 
 **Not yet established:** a live public service; a released data product; a production data pipeline; a deployed Observatory PostGIS/GeoServer stack; an operational weekly digest; or a live STAC catalog. Three synthetic cross-repository handoffs are implemented in CI: pinned QGIS dataset QA, GeoParquet/DuckDB Spatial analysis, and a disposable PostGIS handoff that executes a pinned row-level-security pattern. They validate specific technical interfaces, not a production pipeline. Documentation and green CI checks are not proof of deployment, factual accuracy, or source permission.
 
@@ -95,21 +95,32 @@ Use the [first-product release gate](docs/first-product-release-gate.md) as the 
 
 Every question travels the same cycle: **Direction → Collection → Processing → Analysis → Dissemination → Feedback → Governance.** The software exists to serve the cycle, not the other way around.
 
-## MapExplain — the Observatory question-to-map workspace
+## Integrated Observatory workspaces
 
-[MapExplain](apps/map-explain/README.md) is the question-to-map workspace
-within ZQM Observatory, from ZQM Computing: **ask about places and inspect the map, sources,
-and steps**. Supported English questions produce
-deterministic calculations, an interactive map, ranked rows, and method notes.
-Its Providence data is invented; uploaded points remain unverified and stay
-in the current browser tab. It requires no paid model, database, map service,
-or source collection. CSV, GeoJSON, and copied summaries identify themselves as
-unverified demonstrations and explicitly record that publication is not authorized.
+The [local application](apps/map-explain/README.md) connects five workspaces
+under **ZQM Observatory**, by **ZQM Computing**:
 
-This app is a reviewable engineering prototype. It is not a live Observatory
-service or an approved data-product pipeline. The existing source-rights,
-privacy, factual review, and product-release gates still apply. See its README
-for setup, regression checks, supported operations, and limitations.
+| Workspace | User value |
+| --- | --- |
+| MapExplain | Ask supported location questions; inspect the map, records, sources, and steps |
+| Data Prep | Review and prepare spatial files with explicit CRS and repair choices |
+| Field Collection | Save observations/photos locally, then review and explicitly sync |
+| Coverage Analysis | Compare point-based coverage gaps and weighted supply scenarios |
+| Map Workspace | Style, filter, draw, edit attributes, and leave review notes |
+
+They share project layers, source lineage, IndexedDB persistence, history,
+portable draft bundles, and optional authenticated SQLite revision sync.
+The [private Python service](services/observatory/README.md) adds bounded vector
+format conversion and conflict-aware shared projects. No paid API or new
+recurring service is required. The [build-out mapping](docs/observatory-workspaces-build.md)
+identifies implemented prototype behavior and deferred specification items.
+
+Starter Providence data is invented. User-supplied records remain unverified;
+source rights and publication remain blocked. This is a reviewable engineering
+prototype, not a production service or an approved data-product pipeline. Existing
+source-rights, privacy, factual review, security, and release gates still apply.
+No production deployment, public data publication, or ZQM Labs integration is
+included.
 
 ## Repository guide
 

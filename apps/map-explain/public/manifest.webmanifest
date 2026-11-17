@@ -1,0 +1,18 @@
+{
+  "name": "ZQM Observatory",
+  "short_name": "Observatory",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f3eb",
+  "theme_color": "#244c3c",
+  "description": "Private spatial project workspace by ZQM Computing.",
+  "icons": [
+    {
+      "src": "./favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

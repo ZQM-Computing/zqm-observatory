@@ -1,8 +1,18 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Workspace } from "./components/map-explain/workspace";
+import { Observatory } from "./components/observatory/shell";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(
-  <StrictMode><Workspace /></StrictMode>,
+  <StrictMode>
+    <Observatory />
+  </StrictMode>,
 );
+
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {
+      /* Local records still save; offline shell availability is not assumed. */
+    });
+  });
+}

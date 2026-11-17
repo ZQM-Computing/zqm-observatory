@@ -20,7 +20,7 @@ function coordinate(value: unknown): number | null {
 }
 
 /** RFC-style quoted fields, with explicit rejection of malformed row structure. */
-function csvRows(text: string): string[][] {
+export function csvRows(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let cell = "";
