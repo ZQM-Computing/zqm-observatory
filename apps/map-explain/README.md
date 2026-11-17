@@ -19,11 +19,30 @@ npm run build
 npm run dev
 ```
 
+For the optional client/service integration check, install Python 3.11+ and run
+`npm run test:sync-service`. `OBSERVATORY_TEST_PYTHON` can select its interpreter.
+This check starts its own loopback server and temporary SQLite database using
+synthetic fixtures; no GIS wheels, live credentials, or running private service
+are required. It simulates a lost reply and verifies retry/reload behavior and
+an 8 MB project upload through the same-origin development proxy.
+
 The browser workflows work without paid APIs, an external basemap, or a server.
-The Vite development server proxies `/api` to the optional private service on
+The loopback development server proxies `/api` to the optional private service on
 port 8789. See the [private service setup](../../services/observatory/README.md)
 for format conversion and shared-project sync. `npm run preview` serves the
 production bundle; its static preview has no private API proxy.
+
+The build uses pinned Rolldown and Lightning CSS directly. It emits local hashed
+JavaScript/CSS assets and a content-versioned shell-only service worker. Development
+rebuilds reload the page; component state is not retained across source edits.
+Servers bind to `127.0.0.1` by default. `--port` selects another port; an explicit
+`--host` changes the bind address. API requests preserve the browser's Host and
+Origin so the private service can enforce same-origin access.
+
+Styles are plain CSS with relative local imports. The existing reset, theme and
+legacy utility rules are retained in `src/vendor/foundation.css` with their MIT
+license; there is no Tailwind class scanner. Add future rules to the project
+stylesheets. The former Vite/Picomatch dependency chain is absent from the lockfile.
 
 ## Five connected workspaces
 
@@ -145,8 +164,32 @@ conflicting values. Independent same-name layers produce a naming conflict: choo
 which side keeps the original name; both datasets remain and the other name gets
 a numbered suffix. Applying a merge saves locally; a later push confirms a new
 shared revision. Local save conflicts require reloading; unsubmitted form values
-remain visible so they can be copied before reload. Retry snapshots are reused
-within the open session, and acknowledgements preserve later queued edits.
+remain visible so they can be copied before reload.
+
+Before an upload starts, its exact project snapshot, base revision, operation ID,
+and sent-operation list are saved in IndexedDB. If the reply is lost or the local
+acknowledgement cannot be saved, **Retry unconfirmed upload** reuses those values,
+including after reload. Re-enter the workspace token; it is never part of the
+saved retry. Newer edits stay queued until the earlier upload is confirmed, then
+need a separate push. Fetching a shared project is disabled while a retry is
+unconfirmed. No upload runs automatically in the background.
+
+The service check also requires a valid authenticated readiness response; an
+HTML fallback or error object cannot be reported as a ready private service.
+
+Only an acknowledgement for the requested project, exact submitted JSON content,
+and next server revision clears the sent operations. Object member ordering does
+not affect acknowledgement or merge equality; coordinate/array order still
+matters. Invalid or unrelated responses keep the retry and local edits intact.
+A validated revision conflict ends the retry and enters explicit review.
+
+Opening a different project, applying a reviewed merge, deleting the server copy,
+or resetting device data clears the relevant retry. The incoming-project review
+warns before stopping an unconfirmed upload: it may already exist on the server.
+Recovery copies and exported project bundles preserve documents, without sync
+receipts or tokens. Browser eviction/site-data removal can erase retry data; server
+receipts retain only the latest 20 revisions. A lost or expired receipt may require
+explicit shared-copy review rather than confirmation.
 
 ## Evidence and release boundary
 

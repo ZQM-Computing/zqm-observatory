@@ -15,7 +15,7 @@ from urllib.request import Request, urlopen
 import zipfile
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
-from server import Store, make_server, validate_project
+from server import MAX_BODY, Store, canonical, make_server, validate_project
 from prep import prepare_vector, export_gpkg
 
 TOKEN = "test-only-" + "x" * 40
@@ -110,6 +110,33 @@ class ServiceTests(unittest.TestCase):
             response = client.getresponse(); self.assertEqual(response.status, 400); response.read()
         finally: client.close()
         self.assertEqual(self.store.get("test-project")["revision"], 1)
+
+    def test_project_upload_envelope_does_not_reduce_the_full_document_budget(self):
+        doc = document()
+        props = doc["layers"][0]["features"][0]["properties"]
+        props["padding"] = ""
+        props["padding"] = "x" * (MAX_BODY - len(canonical(doc).encode()))
+        self.assertEqual(len(canonical(doc).encode()), MAX_BODY)
+        validate_project(doc)
+        body = {"document":doc,"expected_revision":0,"operation_id":"full-budget"}
+        self.assertGreater(len(json.dumps(body).encode()), MAX_BODY)
+        status, raw, _ = self.call("/api/projects/test-project", body, "PUT")
+        self.assertEqual(status, 200); self.assertEqual(json.loads(raw)["revision"], 1)
+        self.assertEqual(self.call("/api/projects/test-project", body, "PUT")[0], 200)
+        fetched = self.call("/api/projects/test-project")
+        self.assertEqual(fetched[0], 200)
+        self.assertEqual(json.loads(fetched[1])["document"], doc)
+        props["padding"] += "x"
+        body.update(expected_revision=1, operation_id="too-large-document")
+        self.assertEqual(self.call("/api/projects/test-project", body, "PUT")[0], 400)
+        self.assertEqual(self.store.get("test-project")["revision"], 1)
+        for path, length in [("/api/projects/test-project", MAX_BODY + 1025), ("/api/prep", MAX_BODY + 1)]:
+            with self.subTest(path=path):
+                client = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+                try:
+                    client.request("PUT" if "projects" in path else "POST", path, headers={"Authorization":"Bearer "+TOKEN,"Content-Type":"application/json","Content-Length":str(length)})
+                    response = client.getresponse(); self.assertEqual(response.status, 400); response.read()
+                finally: client.close()
 
     def test_receipts_from_ascii_escaped_json_remain_valid_after_utf8_upgrade(self):
         doc = document(); doc["name"] = "Café 地図"

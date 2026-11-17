@@ -65,6 +65,14 @@ export type LocalState = {
   base: Project | null;
   undo: Project[];
   outbox: { id: string; revision: number; summary: string }[];
+  pendingSend?: PendingSend | null;
+};
+export type PendingSend = {
+  project: Project;
+  localRevision: number;
+  baseRevision: number;
+  ops: string[];
+  operation: string;
 };
 export const MAX_FEATURES = 2000;
 export const MAX_BYTES = 8_000_000;
@@ -73,6 +81,20 @@ export const clone = <T>(value: T): T => structuredClone(value);
 export const now = () => new Date().toISOString();
 export const isRecord = (v: unknown): v is Record<string, unknown> =>
   v !== null && typeof v === "object" && !Array.isArray(v);
+/** Object member order is not part of a JSON document's meaning. */
+export function equalJson(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (Array.isArray(a) && Array.isArray(b))
+    return a.length === b.length && a.every((v, i) => equalJson(v, b[i]));
+  if (isRecord(a) && isRecord(b)) {
+    const keys = Object.keys(a);
+    return (
+      keys.length === Object.keys(b).length &&
+      keys.every((k) => Object.hasOwn(b, k) && equalJson(a[k], b[k]))
+    );
+  }
+  return false;
+}
 export function label(feature: Feature): string {
   return String(
     feature.properties.name ?? feature.properties.title ?? feature.id,

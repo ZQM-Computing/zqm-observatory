@@ -31,8 +31,8 @@ The service defaults to `127.0.0.1:8789`, SQLite at
 `runtime/observatory.sqlite`, and the frontend at `../../apps/map-explain/dist`.
 `--host`, `--port`, `--db`, and `--static` override these paths/settings. The token
 is not printed. Runtime files and virtual environments are ignored by Git.
-Open the service origin for production-build offline support, or use the Vite
-frontend during development (its same-origin `/api` proxy targets port 8789).
+Open the service origin for production-build offline support, or run `npm run dev`
+in `apps/map-explain` (its same-origin `/api` proxy targets port 8789).
 
 ## API contract
 
@@ -57,11 +57,23 @@ escapes for compatibility with browser documents. Operation receipts written by 
 ASCII-escaped format remain valid for identical retries. Database contexts always
 close their handles after commit or rollback.
 
+Project PUT requests allow at most 8,001,024 bytes: the existing 8,000,000-byte
+document plus a bounded revision/operation wrapper. The document limit itself
+remains 8 MB; prep/export JSON requests retain their 8,000,000-byte transport cap.
+Tests cover a full-budget save, identical retry/reload, an oversized document,
+and oversized request headers.
+
 Within the latest 20 revisions, repeating the same operation/body
 returns its original receipt; reusing its ID for another body fails. Older
 receipts expire, but a stale expected revision still fails. Twenty server
 versions are retained for operational recovery; there is no version-selection
 API yet. Deletion removes these versions too.
+
+The frontend saves its unconfirmed upload snapshot and operation ID locally
+before contacting this service. A manual retry after reload can confirm the same
+receipt without replacing newer queued edits. The token remains memory-only.
+Run `npm run test:sync-service` from `apps/map-explain` for a real loopback
+Node/Python/SQLite check with a deliberately lost reply and a full-budget project.
 
 Private prep allows files up to 4 MB, 2,000 input features, and 40,000 output
 coordinates. ZIPs are limited to 100 members and 40 MB expanded, with traversal

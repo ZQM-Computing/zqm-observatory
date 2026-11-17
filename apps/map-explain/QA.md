@@ -8,12 +8,19 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 64 passed, none skipped; includes recovery and IndexedDB transaction regressions |
+| App and build/server regression tests | 85 passed, none skipped; includes durable sync, response contracts, recovery, IndexedDB and seven tooling groups |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
-| Private-service/GIS tests | 16 passed, none skipped |
-| Frontend dependency audit | 0 vulnerabilities reported by `npm audit --audit-level=high` |
+| Private-service/GIS tests | 17 passed, none skipped |
+| Optional client/service integration | Passed through the new same-origin development proxy with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
+| Frontend dependency audit | Passed after clean Windows locked install: 0 vulnerabilities; affected dependency chain removed |
 | Existing Observatory governance tests | 167 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
+
+The [dependency audit record](../../docs/dependency-audit-2026-11-17.md) records the
+original failure and remediation. The [clean Windows run](https://github.com/ZQM-Computing/zqm-observatory/actions/runs/44193136585)
+at `f5061328ebf65108e37237aaeac9f16ba4d98fb6` passed the locked install, all
+85 tests, production build, unchanged full audit gate, 17 service tests and real
+client/proxy/service integration. Prose CI passed separately.
 
 Core checks include known geodesic distance, threshold/weight semantics, strict
 query rejection, layer-name escaping and overlap, Polygon holes, known Mercator
@@ -33,8 +40,12 @@ preserves polygon holes and attributes. They run against temporary SQLite/files.
 Local tests/build passed with Node.js 22.23.5 and 24.22.1; private-service checks
 used Python 3.12.14. Parent PR #75 was independently checked at
 `181197e9eb3393da0bb672e10a70007a14f74ffd`: 33 app tests and the production build
-passed on Node 22.23.5. CI uses the trusted self-hosted Windows runner and remains
-separate evidence. A code merge does not establish passing CI or deployment.
+passed on Node 22.23.5. CI now uses standard hosted Windows 2022 for this public
+repository, retaining the same-repository trust guard and read-only permissions.
+A private repository falls back to the existing self-hosted Windows pool.
+The first hosted run reached the full audit and reproduced the dependency failure,
+confirming that runner routing works. The subsequent remediation run passed all
+steps. CI remains separate from local evidence; neither proves deployment.
 
 ## Observed desktop workflows
 
@@ -137,6 +148,61 @@ tested in the browser. Recovery copies are local convenience copies, not durable
 backups or a substitute for export.
 
 ![Local recovery copies beside the restored project map](docs/qa/project-recovery.jpg)
+
+## Durable private uploads — November 17, 2026
+
+Fourteen additional app regression groups verify that the upload snapshot is
+durable before any request, a lost reply or failed local acknowledgement remains
+retryable after a fresh database read, competing tabs cannot create independent
+requests from one local revision, and later edits stay queued. Tests reject
+malformed/foreign responses, incorrect successful content or revision, unsafe
+revision numbers, malformed pending metadata and persisted credential fields.
+Key-order-only changes no longer create false processing-step merge conflicts.
+Readiness checks reject HTML fallback pages, error objects and invalid readiness
+claims, rather than reporting that a static preview accepted the private token.
+
+The optional integration command starts an isolated Python service with real
+SQLite and uses the production client/controller with an in-memory IndexedDB
+implementation. It consumes one accepted response, simulates a lost reply,
+reloads local state, and confirms the same request without a duplicate server
+revision. A separate push confirms later edits. No token is persisted.
+
+The real HTTP check also uploads an exact 8,000,000-byte synthetic document. A
+service regression reproduced the former early rejection and now verifies the
+bounded upload wrapper, identical retry and GET, rejection of a document one
+byte too large, and unchanged prep request limits. No real source is collected.
+
+The existing trusted Windows workflow includes this integration command after
+its Python service checks. Runner completion remains separate from local results.
+This does not claim an authenticated browser push/pull/conflict session or a
+physical browser crash/eviction test.
+
+## Build and runner troubleshooting — November 17, 2026
+
+The queued job had no assigned runner and required `self-hosted`, `Windows`,
+and `X64`. The hosted replacement ran the existing tests and build successfully,
+then failed at the unchanged full audit gate. Standard public-repository Windows
+runners require no new paid service.
+
+Rolldown and Lightning CSS now build the app without Vite or its affected matcher
+dependencies. Both versions were already present in the prior dependency graph;
+their native platform packages remain locked. The static styling foundation
+retains its license. Seven new test groups cover deterministic hashed output and
+precache completeness, safe build destinations, CSS import boundaries/cycles,
+offline API exclusion and shell fallback, static preview safety, and same-origin
+proxy forwarding/failure behavior. The real 8 MB sync check also uses the proxy.
+The development CLI was also started on a temporary port: the hashed application
+and external reload script loaded, and a disconnected private service returned a
+JSON 502 rather than HTML or internal error details.
+
+Desktop browser QA rendered all five workspace panels, ran the distance question
+with the expected eight synthetic results, and preserved the existing four-layer,
+49-feature project and hidden Warehouse state after reload. With the preview
+origin stopped, another reload loaded the new hashed assets from the shell cache
+and the same question still ran. The origin was then restarted. This validates
+the rebuilt shell, not authenticated browser sync or source permissions.
+
+![Rebuilt Observatory running the synthetic distance question](docs/qa/build-remediation.jpg)
 
 ## Verification limits
 

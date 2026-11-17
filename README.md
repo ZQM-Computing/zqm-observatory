@@ -24,7 +24,7 @@ npm run build
 npm run dev
 ```
 
-Open the local address Vite prints. The browser workflows work without paid
+Open the local address the development server prints. The browser workflows work without paid
 APIs, map tiles, or a server. For GeoPackage/Shapefile conversion and private
 project sync, follow the optional [Python service setup](services/observatory/README.md).
 The [application guide](apps/map-explain/README.md) covers formats, question
@@ -32,9 +32,10 @@ patterns, backups, offline behavior, privacy, and limits. The [verification
 record](apps/map-explain/QA.md) separates local results, browser observations,
 remaining device checks, and GitHub CI status.
 
-The current build-dependency security gate is blocked by an unpatched advisory.
-See the [dated audit record](docs/dependency-audit-2026-11-17.md) for the affected
-dependency chain, reproduction commands, and merge/release requirements.
+The affected build-dependency chain has been removed. A clean hosted Windows
+run passed all workspace checks and the full audit with zero vulnerabilities.
+See the [dated audit record](docs/dependency-audit-2026-11-17.md) for evidence,
+reproduction commands, and the retained security gate.
 
 ## Integrated Observatory workspaces
 
@@ -54,6 +55,8 @@ portable draft bundles, and optional authenticated SQLite revision sync.
 Opening another project retains a local recovery copy, with review/export
 controls in Project & Sync. Up to three copies fit within a combined 12 MB;
 restoring creates a new project identity. Export files for durable backup.
+Private uploads retain their exact retry snapshot across reloads; confirmation
+preserves newer local edits for a later push. Tokens remain memory-only.
 The [private Python service](services/observatory/README.md) adds bounded vector
 format conversion and conflict-aware shared projects. No paid API or new
 recurring service is required. The [build-out mapping](docs/observatory-workspaces-build.md)

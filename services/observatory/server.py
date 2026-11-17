@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import unquote, urlsplit
 
 MAX_BODY = 8_000_000
+MAX_PROJECT_REQUEST = MAX_BODY + 1024  # Bounded revision/operation wrapper; document stays at 8 MB.
 IDENTITY = re.compile(r"^[a-zA-Z0-9_-]{1,80}$")
 
 
@@ -184,12 +185,12 @@ def make_server(address, token, store, static):
             self.send_header("Cache-Control", "no-store")
             self.send_header("X-Content-Type-Options", "nosniff")
             self.end_headers(); self.wfile.write(raw)
-        def read_json(self):
+        def read_json(self, limit=MAX_BODY):
             if self.headers.get("Transfer-Encoding") or self.headers.get_content_type() != "application/json":
                 raise ValueError("Use a bounded application/json request.")
             length = int(self.headers.get("Content-Length", "0"))
-            if not 0 < length <= MAX_BODY:
-                raise ValueError("Request must contain 1–8,000,000 bytes.")
+            if not 0 < length <= limit:
+                raise ValueError(f"Request must contain 1–{limit:,} bytes.")
             raw = self.rfile.read(length)
             if len(raw) != length:
                 raise ValueError("Incomplete request.")
@@ -238,7 +239,7 @@ def make_server(address, token, store, static):
                 if method == "GET":
                     value = store.get(key); self.json(200 if value else 404, value or {"error": "Project not found."}); return
                 if method == "PUT":
-                    body = self.read_json()
+                    body = self.read_json(MAX_PROJECT_REQUEST)
                     status, value = store.put(key, body.get("expected_revision"), body.get("operation_id"), body.get("document"))
                     self.json(status, value); return
                 if method == "DELETE":

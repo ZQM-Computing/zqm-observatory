@@ -1,4 +1,4 @@
-import { isRecord, validateProject, type Project } from "./model.js";
+import { equalJson, isRecord, validateProject, type Project } from "./model.js";
 
 export type MergeConflict = {
   path: string;
@@ -7,8 +7,7 @@ export type MergeConflict = {
   kind?: "layer_name";
 };
 export type Choices = Record<string, "local" | "remote">;
-const equal = (a: unknown, b: unknown) =>
-  JSON.stringify(a) === JSON.stringify(b);
+const equal = equalJson;
 const keyed = (v: unknown[]): v is { id: string }[] =>
   v.every((x) => isRecord(x) && typeof x.id === "string") &&
   new Set(v.map((x) => (x as { id: string }).id)).size === v.length;

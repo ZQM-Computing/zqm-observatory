@@ -17,9 +17,10 @@ concurrency:
 
 jobs:
   validate:
-    # Self-hosted execution is restricted to trusted, same-repository code.
+    # Keep trusted same-repository execution. Standard hosted runners are free
+    # for this public repository; retain the existing pool if it becomes private.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: ${{ fromJSON(github.event.repository.private && '["self-hosted","Windows","X64"]' || '["windows-2022"]') }}
     timeout-minutes: 25
     defaults:
       run:
@@ -33,6 +34,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "22"
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
       - name: Install locked dependencies without lifecycle scripts
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Run GIS, upload, and export regression tests
@@ -51,6 +55,11 @@ jobs:
         working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/services/observatory
         run: |
           & ./.venv/Scripts/python.exe -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify durable client-to-service sync and full-size project upload
+        run: |
+          $env:OBSERVATORY_TEST_PYTHON = (Resolve-Path '../../services/observatory/.venv/Scripts/python.exe').Path
+          npm run test:sync-service
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Clean isolated checkout
         if: always()
