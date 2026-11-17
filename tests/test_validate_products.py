@@ -87,6 +87,28 @@ class ProductValidationTests(unittest.TestCase):
         product_dir = self.make_product()
         self.assertEqual(validate_product(product_dir), [])
 
+    def test_incorrect_top_level_json_types_are_rejected(self) -> None:
+        product_dir = self.make_product()
+        product_path = product_dir / "product.json"
+        sources_path = product_dir / "sources.json"
+        valid_product = json.loads(product_path.read_text(encoding="utf-8"))
+        valid_sources = json.loads(sources_path.read_text(encoding="utf-8"))
+        cases = (
+            (None, valid_sources, ("product.json",)),
+            (valid_product, {}, ("sources.json",)),
+            ([], None, ("product.json", "sources.json")),
+        )
+        for product, sources, invalid_files in cases:
+            with self.subTest(product=product, sources=sources):
+                product_path.write_text(json.dumps(product), encoding="utf-8")
+                sources_path.write_text(json.dumps(sources), encoding="utf-8")
+                errors = validate_product(product_dir)
+                for filename in invalid_files:
+                    self.assertTrue(any(
+                        f"{filename}: top-level value must be a JSON" in error
+                        for error in errors
+                    ), errors)
+
     def test_duplicate_json_keys_are_rejected(self) -> None:
         product_dir = self.make_product()
         path = product_dir / "product.json"

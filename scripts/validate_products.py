@@ -89,6 +89,10 @@ def validate_product(path: Path) -> list[str]:
         return [f"{item}: symlinks are not allowed inside product bundles" for item in linked_paths]
     product = read_json(path / "product.json", errors)
     sources = read_json(path / "sources.json", errors)
+    if not isinstance(product, dict):
+        errors.append(f"{path}/product.json: top-level value must be a JSON object")
+    if not isinstance(sources, list):
+        errors.append(f"{path}/sources.json: top-level value must be a JSON array")
     if not isinstance(product, dict) or not isinstance(sources, list):
         return errors
 
