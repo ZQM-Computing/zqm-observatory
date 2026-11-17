@@ -4,8 +4,8 @@
 
 The ZQM Observatory is a self-hosted, open-source observatory that turns
 public data into mapped, verifiable intelligence: GEOINT (land, water,
-infrastructure, imagery, sensors) and OSINT (entities, domains, records,
-signals) fused into one picture.
+infrastructure, imagery, sensors), OSINT (entities, domains, records), and
+SIGINT (publicly observable signals) fused into one picture.
 
 Its products are written for ordinary people making ordinary decisions:
 where is safe, what is happening nearby, which services and systems can be
@@ -35,6 +35,26 @@ The Observatory is focused on:
   not the whole.
 - Family values: family-friendly places and activities, and products a
   family can use and trust.
+
+## Signals intelligence (SIGINT)
+
+SIGINT is the systematic observation of publicly visible activity and
+change: procurement feeds, hiring posts, press releases, public posts,
+public page changes, and public-record updates, read as signals about what
+is happening and what is about to happen. Where GEOINT maps what is there
+and OSINT establishes who and what is recorded, SIGINT watches what moves.
+
+The boundary is hard and public-only. SIGINT here means signals anyone can
+observe without a login, a credential, or a private account: no
+interception of private communications, no private accounts, no
+behind-login access. A fact that can only be reached behind a login is
+marked unresolved, not chased. Aggregators and search-index mirrors are
+corroboration only, never the basis for a claim on their own.
+
+Signals are about institutions, projects, and places, not people. SIGINT
+is reported as aggregates, under the same rule as everything else in this
+repository: no individual tracks, no personal data, and no children's
+identifiable data, ever.
 
 ## What it is not
 
