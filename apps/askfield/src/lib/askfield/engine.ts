@@ -885,7 +885,7 @@ function pointsWithin(
       { title: "Threshold", detail: `${word} ${formatMeters(meters)}. ${kept.length} of ${subjects.length} passed.` },
     ],
     sources: [SOURCE_DIST],
-    rows: kept.slice(0, 12).map((k, i) => ({
+    rows: kept.map((k, i) => ({
       id: k.s.id,
       name: k.s.name,
       primary: formatMeters(k.meters),
@@ -1044,7 +1044,7 @@ function countByZone(subject: PointKind, ctx: Context): QueryResult {
   const bar = bars(counts.map((c) => c.count));
   const extra: Record<string, string> = {};
   for (const c of counts) extra[c.n.id] = `${c.count} ${subject}`;
-  const missed = pts.length - counts.reduce((s, c) => s + c.count, 0);
+  const missed = pts.filter((p) => !neighborhoods.some((n) => pointInRing([p.lon, p.lat], n.ring))).length;
   return shell({
     key: `count:${subject}:${counts.map((c) => c.count).join()}`,
     title: `${counts[0].n.name} contains the most ${subject}`,

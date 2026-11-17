@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { clinics, customers, neighborhoods } from "../src/lib/askfield/data.js";
 import { EXAMPLES, interpret } from "../src/lib/askfield/intent.js";
 import { run, tryAnswer, type UploadPoint } from "../src/lib/askfield/engine.js";
 import { distanceMeters, pointInRing } from "../src/lib/askfield/geo.js";
@@ -97,4 +98,74 @@ test("show operations list every requested feature and label uploaded provenance
   assert.ok(result.sources.some((s) => s.name === "User-supplied points"));
   assert.ok(result.legend.some((s) => s.label === "Unverified uploaded point"));
   assert.equal(JSON.parse(resultGeoJSON(result, "Show my points")).features[0].properties.source_class, "user_supplied_unverified");
+});
+
+test("threshold exports retain every matching uploaded point", () => {
+  const upload = Array.from({ length: 20 }, (_, i) => ({
+    id: `upload-${i}`, name: `Site ${i}`, lon: clinics[0].lon, lat: clinics[0].lat, props: {},
+  }));
+  for (const [question, expected] of [
+    ["Show my points within 1 km of clinics", 20],
+    ["Show my points more than 1 km from clinics", 0],
+  ] as const) {
+    const result = tryAnswer(question, { upload })!;
+    assert.equal(result.rows.length, expected);
+    const ids = result.rows.map((r) => r.id).sort();
+    assert.deepEqual(JSON.parse(resultGeoJSON(result, question)).features.map((f: { id: string }) => f.id).sort(), ids);
+    const csv = resultCSV(result, question);
+    for (const point of upload) assert.equal(csv.includes(`${point.id},`), expected > 0);
+  }
+});
+
+test("explicit small percentages use percent units while bare fractions remain fractions", () => {
+  for (const marker of ["%", " percent"]) {
+    for (const value of [0, 0.5, 1, 20]) {
+      const q = `Which neighborhoods have a share of children under ${value}${marker}?`;
+      assert.deepEqual(interpret(q), { kind: "neighborhoods_where", field: "shareChildren", op: "lt", value: value / 100 });
+      assert.equal(tryAnswer(q, { upload: [] })!.rows.length, neighborhoods.filter((n) => n.shareChildren < value / 100).length);
+    }
+  }
+  assert.deepEqual(interpret("Which neighborhoods have a share of children under 0.5?"), { kind: "neighborhoods_where", field: "shareChildren", op: "lt", value: 0.5 });
+  assert.equal(tryAnswer("Which neighborhoods have broadband under 1%?", { upload: [] })!.rows.length, 0);
+});
+
+test("nearest and farthest rankings preserve subject and target roles", () => {
+  for (const [word, dir] of [["nearest to", "asc"], ["closest to", "asc"], ["farthest from", "desc"], ["furthest from", "desc"]] as const) {
+    for (const [subject, target] of [["customers", "parks"], ["parks", "customers"], ["warehouse", "customers"], ["clinics", "upload"]] as const) {
+      const noun = (kind: string) => kind === "upload" ? "my points" : kind;
+      assert.deepEqual(interpret(`Show ${noun(subject)} ${word} ${noun(target)}`), { kind: "distance_rank", subject, target, dir });
+    }
+  }
+  assert.equal(interpret("Show nearest parks customers"), null);
+  const result = tryAnswer("Show customers nearest to parks", { upload: [] })!;
+  assert.ok(result.rows.every((row) => customers.some((c) => c.id === row.id)));
+});
+
+test("neighborhood distance thresholds decline instead of returning unfiltered ranks", () => {
+  for (const meters of ["1", "100"]) {
+    for (const relation of ["more than", "within", "less than"]) {
+      assert.equal(interpret(`Show neighborhoods ${relation} ${meters} km from clinics`), null);
+    }
+  }
+  assert.deepEqual(interpret("Show neighborhoods nearest to clinics"), { kind: "zone_distance", target: "clinics", dir: "asc" });
+});
+
+test("overlapping zone counts do not hide unmatched uploaded points", () => {
+  const overlap = { id: "upload-overlap", name: "Overlap", lon: -71.4205, lat: 41.8225, props: {} };
+  const outside = { id: "upload-outside", name: "Outside", lon: 0, lat: 0, props: {} };
+  const zones = neighborhoods.filter((n) => pointInRing([overlap.lon, overlap.lat], n.ring));
+  assert.ok(zones.length >= 2);
+  const result = tryAnswer("Count my points by neighborhood", { upload: [overlap, outside] })!;
+  assert.match(result.summary, /1 fall outside every neighborhood outline/);
+  for (const zone of zones) assert.equal(result.rows.find((r) => r.id === zone.id)!.primary, "1");
+  assert.match(tryAnswer("Count my points by neighborhood", { upload: [overlap] })!.summary, /Every point falls inside/);
+});
+
+test("location guards validate complete phrases and preserve supported locations", () => {
+  for (const q of ["Show clinics in Downtown Boston", "Show clinics near Boston", "Show clinics in Providence Boston", "Show clinics in Downtown near Boston", "Show clinics near Downtown Boston"]) {
+    assert.equal(interpret(q), null, q);
+  }
+  for (const q of ["Show clinics in Downtown", "Show clinics in Providence", "Show clinics near the warehouse", "Show customers within 1 km of clinics"]) {
+    assert.ok(interpret(q), q);
+  }
 });

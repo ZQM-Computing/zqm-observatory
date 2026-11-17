@@ -166,12 +166,28 @@ export function interpret(raw: string): Intent | null {
   const kinds = detectKinds(q);
   const field = detectField(q);
   const zone = matchZone(q);
-  if (/\bin\s+/.test(q) && !zone && !/\bin (the )?(sample|providence|each neighborhood|park coverage|clinic coverage)\b/.test(q)) return null;
+  // Validate the whole location phrase: "Downtown Boston" is not our Downtown.
+  for (const location of q.matchAll(/\b(in|near)\s+(.+?)(?=\s+(?:within|more than|less than|from|with|for|and|by)\b|$)/g)) {
+    const place = location[2].replace(/^the /, "");
+    const knownZone = neighborhoods.some((n) => place === n.name.toLowerCase());
+    const knownArea = /^(sample|providence|each neighborhood|park coverage|clinic coverage)$/.test(place);
+    const knownTarget = location[1] === "near" && /^(?:nearest )?(clinics?|health centers?|doctors?|hospitals?|parks?|green spaces?|playgrounds?|customers?|delivery stops?|stops?|warehouse|depot|my points|my locations|my sites|uploaded points)$/.test(place);
+    if (!knownZone && !knownArea && !knownTarget) return null;
+  }
   const wantsWithin = /within|inside|closer than|less than|under |near\b/.test(q);
   const wantsBeyond = /more than|farther|further|beyond|outside|at least/.test(q);
   const wantsFar = /farthest|furthest/.test(q);
   const wantsNear = /nearest|closest/.test(q);
   const rankish = /rank|sort|highest|lowest|most|least|top |bottom /.test(q);
+
+  if ((wantsFar || wantsNear) && kinds.length >= 2 && !distance) {
+    const relation = q.match(/^(.*?)\b(?:nearest|closest|farthest|furthest)\s+(?:(?:to|from)\s+)?(.+)$/);
+    if (!relation) return null;
+    const subjects = detectKinds(relation[1]);
+    const targets = detectKinds(relation[2]);
+    if (subjects.length !== 1 || targets.length !== 1 || subjects[0] === targets[0]) return null;
+    return { kind: "distance_rank", subject: subjects[0], target: targets[0], dir: wantsFar ? "desc" : "asc" };
+  }
 
   if (kinds.includes("upload") && (wantsWithin || wantsBeyond || distance || wantsFar || wantsNear)) {
     const target = kinds.includes("warehouse")
@@ -259,10 +275,12 @@ export function interpret(raw: string): Intent | null {
 
   if (
     /neighborhood/.test(q) &&
-    (wantsFar || wantsNear || wantsBeyond) &&
+    (wantsFar || wantsNear || wantsBeyond || wantsWithin) &&
     (kinds.includes("clinics") || kinds.includes("parks") || kinds.includes("warehouse")) &&
     !/65|senior|child|kid/.test(q)
   ) {
+    // This operation ranks centroids; threshold filtering is unsupported.
+    if (distance) return null;
     const target = kinds.includes("parks")
       ? "parks"
       : kinds.includes("warehouse")
@@ -310,7 +328,7 @@ export function interpret(raw: string): Intent | null {
   const plain = extractPlainNumber(q);
   if (field && op && plain != null && !distance) {
     let value = plain;
-    if ((field === "share65" || field === "shareChildren") && value > 1) value = value / 100;
+    if ((field === "share65" || field === "shareChildren") && (/%|\bpercent(?:age)?\b/.test(q) || value > 1)) value = value / 100;
     return { kind: "neighborhoods_where", field, op, value };
   }
 
