@@ -1,11 +1,11 @@
-name: MapExplain validation
+name: Observatory workspace validation
 
 on:
   pull_request:
-    paths: ["apps/map-explain/**", ".github/workflows/map-explain.yml"]
+    paths: ["apps/map-explain/**", "services/observatory/**", ".github/workflows/map-explain.yml"]
   push:
     branches: [main]
-    paths: ["apps/map-explain/**", ".github/workflows/map-explain.yml"]
+    paths: ["apps/map-explain/**", "services/observatory/**", ".github/workflows/map-explain.yml"]
   workflow_dispatch:
 
 permissions:
@@ -20,7 +20,7 @@ jobs:
     # Self-hosted execution is restricted to trusted, same-repository code.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         shell: pwsh
@@ -41,6 +41,17 @@ jobs:
         run: npm run build
       - name: Audit dependency vulnerabilities
         run: npm audit --audit-level=high
+      - name: Install private GIS service dependencies in an isolated environment
+        working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/services/observatory
+        run: |
+          python -m venv .venv
+          & ./.venv/Scripts/python.exe -m pip install --only-binary=:all: -r requirements.lock.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Validate private service, concurrency, and vector format round trips
+        working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/services/observatory
+        run: |
+          & ./.venv/Scripts/python.exe -m unittest discover -s tests -v
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Clean isolated checkout
         if: always()
         working-directory: ${{ github.workspace }}
