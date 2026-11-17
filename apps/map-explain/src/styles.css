@@ -68,6 +68,30 @@
   background: var(--color-paper);
 }
 
+.brand-lockup {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.brand-parent {
+  margin: 0;
+  font-size: 0.65rem;
+  line-height: 1.25;
+  letter-spacing: 0.035em;
+  color: var(--color-pine);
+}
+
+.brand-feature {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--color-ink);
+}
+
 .notebook {
   display: flex;
   min-height: 0;

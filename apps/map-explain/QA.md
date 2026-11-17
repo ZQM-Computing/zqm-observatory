@@ -1,4 +1,4 @@
-# AskField verification record
+# MapExplain verification record
 
 This record covers the standalone synthetic demo, not a production service or
 an approved data publication. Checks were performed against the source in this PR
@@ -8,7 +8,7 @@ and the resulting static build.
 
 | Check | Observed result |
 | --- | --- |
-| AskField regression tests | 17 passed; none skipped |
+| MapExplain regression tests | 30 passed; none skipped |
 | TypeScript and production build | Passed; one local JS entry, relative asset paths |
 | Dependency audit | `npm audit --audit-level=high`: 0 vulnerabilities |
 | Existing Observatory Python tests | 149 passed |
@@ -48,7 +48,25 @@ application and were not counted as application failures.
 - A Volusia clinic request was declined rather than answered using Providence
   records. No live-source query or production action was performed.
 
-![Built AskField demo with method, local map, and synthetic-data banner](docs/qa/desktop.jpg)
+![Built MapExplain demo with method, local map, and synthetic-data banner](docs/qa/desktop.jpg)
+
+## Identity and naming recheck — November 17, 2026
+
+The [competitor and naming review](../../docs/observatory-competitive-landscape.md)
+replaces the imported prototype identity with the provisional name
+**ZQM Observatory — MapExplain**, published by **ZQM Computing**. The interface
+states the user value explicitly: asking about places and inspecting the map,
+sources, and steps. Formal name clearance is not claimed.
+
+All 30 app regression tests, TypeScript checks, and the production build passed
+after the rename. The built app's desktop header, browser title, and description
+were inspected. The customer-distance example still returned 16 of 28 stops
+within 1.5 km. An actual GeoJSON download contained those 16 features and the
+new publisher, platform, and feature identity while retaining
+`publication_authorized: false`. The screenshot above shows the renamed build.
+No application-origin console errors or warnings were observed. The rename also
+retains the PR's calculation, export, geographic parsing, upload-state, and
+focus fixes, along with thirteen additional regression tests.
 
 ## Remaining verification
 

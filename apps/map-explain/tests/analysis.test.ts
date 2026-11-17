@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { clinics, customers, neighborhoods } from "../src/lib/askfield/data.js";
-import { EXAMPLES, interpret } from "../src/lib/askfield/intent.js";
-import { run, tryAnswer, type UploadPoint } from "../src/lib/askfield/engine.js";
-import { distanceMeters, pointInRing } from "../src/lib/askfield/geo.js";
-import { resultCSV, resultGeoJSON, resultSummary, csvCell } from "../src/lib/askfield/export.js";
+import { clinics, customers, neighborhoods } from "../src/lib/map-explain/data.js";
+import { EXAMPLES, interpret } from "../src/lib/map-explain/intent.js";
+import { run, tryAnswer, type UploadPoint } from "../src/lib/map-explain/engine.js";
+import { distanceMeters, pointInRing } from "../src/lib/map-explain/geo.js";
+import { resultCSV, resultGeoJSON, resultSummary, csvCell } from "../src/lib/map-explain/export.js";
 
 test("geodesic distance has known equatorial scale and is symmetric", () => {
   assert.equal(distanceMeters([0, 0], [0, 0]), 0);

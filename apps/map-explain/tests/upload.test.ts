@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MAX_POINTS, parseUpload } from "../src/lib/askfield/upload.js";
+import { MAX_POINTS, parseUpload } from "../src/lib/map-explain/upload.js";
 
 const feature = (coordinates: unknown, properties: unknown = {}) => ({ type: "Feature", geometry: { type: "Point", coordinates }, properties });
 const read = (features: unknown[]) => parseUpload(JSON.stringify({ type: "FeatureCollection", features }), "points.geojson");

@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Workspace } from "./components/askfield/workspace";
+import { Workspace } from "./components/map-explain/workspace";
 import "./styles.css";
 
 createRoot(document.getElementById("root")!).render(

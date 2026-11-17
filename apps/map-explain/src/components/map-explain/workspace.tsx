@@ -7,18 +7,19 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { SAMPLE_NOTE } from "@/lib/askfield/data";
+import { SAMPLE_NOTE } from "@/lib/map-explain/data";
 import {
   explainResult,
   run,
   tryAnswer,
   type QueryResult,
   type UploadPoint,
-} from "@/lib/askfield/engine";
-import { DEFAULT_QUESTION, EXAMPLES } from "@/lib/askfield/intent";
-import { MAX_FILE_BYTES, parseUpload, type Diagnostic } from "@/lib/askfield/upload";
-import { DEMO_NOTICE, resultCSV, resultGeoJSON, resultSummary } from "@/lib/askfield/export";
-import { MapView } from "@/components/askfield/map-view";
+} from "@/lib/map-explain/engine";
+import { DEFAULT_QUESTION, EXAMPLES } from "@/lib/map-explain/intent";
+import { MAX_FILE_BYTES, parseUpload, type Diagnostic } from "@/lib/map-explain/upload";
+import { DEMO_NOTICE, resultCSV, resultGeoJSON, resultSummary } from "@/lib/map-explain/export";
+import { EXPORT_BASENAME, FEATURE_NAME, PLATFORM_NAME, PUBLISHER_NAME, VALUE_STATEMENT } from "@/lib/map-explain/identity";
+import { MapView } from "@/components/map-explain/map-view";
 import { cn } from "@/lib/cn";
 
 const LAYER_TOGGLES: { id: string; label: string }[] = [
@@ -166,9 +167,9 @@ export function Workspace() {
       }}
     >
       <header className="topbar">
-        <div className="flex min-w-0 items-baseline gap-3">
-          <p className="font-serif text-2xl leading-none italic tracking-tight">AskField</p>
-          <p className="eyebrow hidden sm:block">ZQM Observatory · Computing</p>
+        <div className="brand-lockup">
+          <p className="brand-parent">{PUBLISHER_NAME} <span aria-hidden="true">·</span> {PLATFORM_NAME}</p>
+          <p className="brand-feature">{FEATURE_NAME}</p>
         </div>
         <button type="button" className="ghost-btn" onClick={() => setLayersOpen(true)}>
           <Layers className="size-4" />
@@ -182,8 +183,9 @@ export function Workspace() {
       </div>
       <section className="notebook" aria-label="Answer">
         <div className="notebook-scroll">
-          <p className="text-sm text-muted">
-            Ask a supported location question. The map, count, and steps come from one local calculation.
+          <p className="text-base font-medium text-ink">{VALUE_STATEMENT}</p>
+          <p className="mt-1 text-sm text-muted">
+            Ask a supported question. Compare locations, find gaps, and inspect the calculation.
           </p>
           <p className="mt-4 font-serif text-lg leading-snug italic text-pretty text-ink">“{question}”</p>
           <div key={result.queryId} className="answer-in mt-4">
@@ -206,7 +208,7 @@ export function Workspace() {
                   <button
                     type="button"
                     className="ghost-btn"
-                    onClick={() => download("askfield-demo.geojson", resultGeoJSON(result, question), "application/geo+json")}
+                    onClick={() => download(`${EXPORT_BASENAME}.geojson`, resultGeoJSON(result, question), "application/geo+json")}
                     disabled={!result.rows.length}
                   >
                     <Download className="size-4" />
@@ -217,7 +219,7 @@ export function Workspace() {
                     className="ghost-btn"
                     disabled={!result.rows.length}
                     onClick={() => {
-                      download("askfield-demo.csv", resultCSV(result, question), "text/csv");
+                      download(`${EXPORT_BASENAME}.csv`, resultCSV(result, question), "text/csv");
                     }}
                   >
                     <Download className="size-4" />

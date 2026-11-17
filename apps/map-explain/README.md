@@ -1,9 +1,30 @@
-# AskField — ZQM Observatory local demo
+# ZQM Observatory — MapExplain
 
-Ask a supported location question and inspect its calculated answer, map,
-ranked rows, method, and limitations together. This is a **synthetic GIS
+**Ask about places. See the map, sources, and steps.**
+
+**Traceable location analysis.** MapExplain is the question-to-map workspace within **ZQM Observatory**,
+from **ZQM Computing**. Ask a supported location question and compare locations,
+find illustrative coverage gaps, or inspect ranked results alongside the map,
+source notes, calculation steps, and limitations. This is a **synthetic GIS
 engineering demonstration**, not a released Observatory data product or a live
 service. It belongs to ZQM Computing; it does not integrate ZQM Labs games.
+
+## Product identity
+
+| Level | Name | Purpose |
+| --- | --- | --- |
+| Publisher | ZQM Computing | Geospatial tools and engineering |
+| Platform | ZQM Observatory | Traceable place-based research and analysis |
+| Feature | MapExplain | Ask location questions; inspect maps, results, and methods |
+
+Use **ZQM Observatory — MapExplain** for the full product/feature name,
+**MapExplain** inside the Observatory interface, and **by ZQM Computing**
+when publisher context is needed. Keep the descriptive value statement alongside
+first mentions. Demo labeling and evidence limits remain visible separately.
+
+The working name follows a [competitor and naming screen](../../docs/observatory-competitive-landscape.md).
+It is a provisional development name, not a statement of trademark, domain, or
+social-handle clearance. No separate domain or paid brand service is required.
 
 ## Run and verify
 
@@ -78,8 +99,8 @@ downloaded file; human release review remains necessary.
 Adapted from the user-supplied `grok-workspace.zip` on November 16, 2026.
 Archive SHA-256:
 `5735fb863e27e6df0fa15c9d3e7bf92a5e34a2f23ea2902449728326a887221f`.
-The reusable AskField engine, data, geometry, intent, workspace, and styling were
-ported into a standalone Vite/React application. The source archive's hosting,
+The supplied prototype's engine, data, geometry, intent, workspace, and styling were
+adapted into a standalone Vite/React application. The source archive's hosting,
 authentication, database, AI planner, generated art, personal attachments, and
 platform scaffolding are not runtime dependencies of this application.
 

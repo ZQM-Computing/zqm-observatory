@@ -7,5 +7,5 @@
     "outDir": ".test-build",
     "rootDir": "."
   },
-  "include": ["src/lib/askfield/**/*.ts", "tests/**/*.test.ts"]
+  "include": ["src/lib/map-explain/**/*.ts", "tests/**/*.test.ts"]
 }

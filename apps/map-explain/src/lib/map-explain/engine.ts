@@ -367,7 +367,7 @@ export function explainResult(message: string): QueryResult {
     steps: [
       {
         title: "No step ran",
-        detail: "Askfield only maps a fixed set of spatial steps, so it will not invent a result.",
+        detail: "MapExplain only maps a fixed set of spatial steps, so it will not invent a result.",
       },
     ],
     sources: [SOURCE_NBHD, SOURCE_CLINIC, SOURCE_PARK, SOURCE_CUST, SOURCE_WH],

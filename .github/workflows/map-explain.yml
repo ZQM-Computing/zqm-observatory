@@ -1,18 +1,18 @@
-name: AskField validation
+name: MapExplain validation
 
 on:
   pull_request:
-    paths: ["apps/askfield/**", ".github/workflows/askfield.yml"]
+    paths: ["apps/map-explain/**", ".github/workflows/map-explain.yml"]
   push:
     branches: [main]
-    paths: ["apps/askfield/**", ".github/workflows/askfield.yml"]
+    paths: ["apps/map-explain/**", ".github/workflows/map-explain.yml"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: askfield-${{ github.ref }}
+  group: map-explain-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
     defaults:
       run:
         shell: pwsh
-        working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/apps/askfield
+        working-directory: source-${{ github.run_id }}-${{ github.run_attempt }}/apps/map-explain
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:

@@ -1,11 +1,15 @@
 import { SAMPLE_NOTE } from "./data.js";
 import type { QueryResult } from "./engine.js";
+import { APPLICATION_NAME, FEATURE_NAME, PLATFORM_NAME, PUBLISHER_NAME } from "./identity.js";
 
-export const DEMO_NOTICE = "ZQM Observatory / AskField local demo. Illustrative Providence sample; user points are unverified. Not a released Observatory data product. Publication is not authorized.";
+export const DEMO_NOTICE = `${APPLICATION_NAME}, by ${PUBLISHER_NAME}. Local demonstration: illustrative Providence sample; user points are unverified. Not a released Observatory data product. Publication is not authorized.`;
 
 export function provenance(result: QueryResult, question: string) {
   return {
-    application: "ZQM Observatory / AskField",
+    application: APPLICATION_NAME,
+    publisher: PUBLISHER_NAME,
+    platform: PLATFORM_NAME,
+    feature: FEATURE_NAME,
     schema_version: 1,
     status: "unverified_demo",
     publication_authorized: false,

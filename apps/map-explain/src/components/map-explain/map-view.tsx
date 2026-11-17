@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { X, ZoomIn, ZoomOut, Maximize } from "lucide-react";
-import type { QueryResult } from "@/lib/askfield/engine";
-import type { LonLat } from "@/lib/askfield/geo";
+import type { QueryResult } from "@/lib/map-explain/engine";
+import type { LonLat } from "@/lib/map-explain/geo";
 
 type Props = {
   result: QueryResult;

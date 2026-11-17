@@ -2,7 +2,7 @@
 
 **ZQM Observatory** is an open-source **geospatial intelligence (GEOINT) and public-data research** project for reproducible mapping, source provenance, geospatial data quality assurance (QA), imagery discovery, and community briefs. It is being built to turn appropriately licensed public information into auditable geographic products—not unsourced claims or private-data aggregation.
 
-**Volusia County, Florida is the proving ground, not the boundary.** The Observatory remains at **Stage 0 / build-out**. This repository does not claim a live map, feed, dashboard, or published data product. The outputs described below are planned capabilities, not deployed services. A local [AskField synthetic GIS demo](apps/askfield/README.md) is available for engineering review; it does not establish a live service or verified product.
+**Volusia County, Florida is the proving ground, not the boundary.** The Observatory remains at **Stage 0 / build-out**. This repository does not claim a live map, feed, dashboard, or published data product. The outputs described below are planned capabilities, not deployed services. A local [MapExplain synthetic GIS demo](apps/map-explain/README.md) is available for engineering review; it does not establish a live service or verified product.
 
 ## Mission and focus
 
@@ -19,7 +19,7 @@ Conservation and environmental conditions are in scope, but they are one use cas
 
 ## Status: what exists and what does not
 
-**In version control today:** repository standards, source-governance documentation, metadata-only source preflight tooling, an item-level Volusia source audit, a machine-readable source-rights register, data-product bundle validation standards, and the local AskField synthetic demonstration.
+**In version control today:** repository standards, source-governance documentation, metadata-only source preflight tooling, an item-level Volusia source audit, a machine-readable source-rights register, data-product bundle validation standards, and the local MapExplain synthetic demonstration.
 
 **Not yet established:** a live public service; a released data product; a production data pipeline; a deployed Observatory PostGIS/GeoServer stack; an operational weekly digest; or a live STAC catalog. Three synthetic cross-repository handoffs are implemented in CI: pinned QGIS dataset QA, GeoParquet/DuckDB Spatial analysis, and a disposable PostGIS handoff that executes a pinned row-level-security pattern. They validate specific technical interfaces, not a production pipeline. Documentation and green CI checks are not proof of deployment, factual accuracy, or source permission.
 
@@ -95,9 +95,11 @@ Use the [first-product release gate](docs/first-product-release-gate.md) as the 
 
 Every question travels the same cycle: **Direction → Collection → Processing → Analysis → Dissemination → Feedback → Governance.** The software exists to serve the cycle, not the other way around.
 
-## AskField local demonstration
+## MapExplain — the Observatory question-to-map workspace
 
-[AskField](apps/askfield/README.md) turns supported English questions into
+[MapExplain](apps/map-explain/README.md) is the question-to-map workspace
+within ZQM Observatory, from ZQM Computing: **ask about places and inspect the map, sources,
+and steps**. Supported English questions produce
 deterministic calculations, an interactive map, ranked rows, and method notes.
 Its Providence data is invented; uploaded points remain unverified and stay
 in the current browser tab. It requires no paid model, database, map service,

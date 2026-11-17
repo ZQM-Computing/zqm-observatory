@@ -11,7 +11,7 @@ export default defineConfig({
     {
       // Vite's React development preamble is inline. Production keeps the strict
       // policy in index.html; the dev-only policy permits that local preamble.
-      name: "askfield-dev-csp",
+      name: "map-explain-dev-csp",
       apply: "serve",
       transformIndexHtml: {
         order: "pre",
