@@ -24,7 +24,7 @@ npm run build
 npm run dev
 ```
 
-Open the local address Vite prints. The browser workflows work without paid
+Open the local address the development server prints. The browser workflows work without paid
 APIs, map tiles, or a server. For GeoPackage/Shapefile conversion and private
 project sync, follow the optional [Python service setup](services/observatory/README.md).
 The [application guide](apps/map-explain/README.md) covers formats, question
@@ -32,9 +32,10 @@ patterns, backups, offline behavior, privacy, and limits. The [verification
 record](apps/map-explain/QA.md) separates local results, browser observations,
 remaining device checks, and GitHub CI status.
 
-The current build-dependency security gate is blocked by an unpatched advisory.
-See the [dated audit record](docs/dependency-audit-2026-11-17.md) for the affected
-dependency chain, reproduction commands, and merge/release requirements.
+The affected build-dependency chain has been removed; clean Windows CI and its
+full dependency audit must verify the remediation before merge/release.
+See the [dated audit record](docs/dependency-audit-2026-11-17.md) for evidence
+and reproduction commands.
 
 ## Integrated Observatory workspaces
 

@@ -24,13 +24,25 @@ For the optional client/service integration check, install Python 3.11+ and run
 This check starts its own loopback server and temporary SQLite database using
 synthetic fixtures; no GIS wheels, live credentials, or running private service
 are required. It simulates a lost reply and verifies retry/reload behavior and
-an 8 MB project upload.
+an 8 MB project upload through the same-origin development proxy.
 
 The browser workflows work without paid APIs, an external basemap, or a server.
-The Vite development server proxies `/api` to the optional private service on
+The loopback development server proxies `/api` to the optional private service on
 port 8789. See the [private service setup](../../services/observatory/README.md)
 for format conversion and shared-project sync. `npm run preview` serves the
 production bundle; its static preview has no private API proxy.
+
+The build uses pinned Rolldown and Lightning CSS directly. It emits local hashed
+JavaScript/CSS assets and a content-versioned shell-only service worker. Development
+rebuilds reload the page; component state is not retained across source edits.
+Servers bind to `127.0.0.1` by default. `--port` selects another port; an explicit
+`--host` changes the bind address. API requests preserve the browser's Host and
+Origin so the private service can enforce same-origin access.
+
+Styles are plain CSS with relative local imports. The existing reset, theme and
+legacy utility rules are retained in `src/vendor/foundation.css` with their MIT
+license; there is no Tailwind class scanner. Add future rules to the project
+stylesheets. The former Vite/Picomatch dependency chain is absent from the lockfile.
 
 ## Five connected workspaces
 

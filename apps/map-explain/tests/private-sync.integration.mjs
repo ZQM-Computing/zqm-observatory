@@ -24,6 +24,7 @@ import {
   saveLocal,
 } from "../.test-build/src/lib/observatory/store.js";
 import { sendProject } from "../.test-build/src/lib/observatory/sync.js";
+import { createWorkspaceServer } from "../scripts/serve.mjs";
 
 const TOKEN = "synthetic-integration-fixture-not-a-user-secret-12345";
 const serviceDir = fileURLToPath(
@@ -52,6 +53,7 @@ const service = spawn(
   },
 );
 const realFetch = globalThis.fetch;
+let proxy;
 let diagnostic = "";
 service.stderr.on("data", (chunk) => {
   diagnostic = (diagnostic + chunk.toString()).slice(-4000);
@@ -84,14 +86,21 @@ try {
       else resolve(Number(line));
     });
   });
+  proxy = createWorkspaceServer({
+    directory,
+    development: true,
+    proxyPort: port,
+  });
+  await new Promise((done) => proxy.listen(0, "127.0.0.1", done));
+  const origin = `http://127.0.0.1:${proxy.address().port}`;
   globalThis.indexedDB = new IDBFactory();
   let dropReply = true;
   const uploads = [];
   globalThis.fetch = async (path, options) => {
-    const result = await realFetch(
-      new URL(path, `http://127.0.0.1:${port}`),
-      options,
-    );
+    const result = await realFetch(new URL(path, origin), {
+      ...options,
+      headers: { ...options?.headers, Origin: origin },
+    });
     if (options?.method === "PUT") uploads.push(options.body);
     if (dropReply && options?.method === "PUT" && result.ok) {
       dropReply = false;
@@ -171,10 +180,16 @@ try {
       laterEditsConfirmedSeparately: "passed",
       fullBudgetProjectBytes: MAX_BYTES,
       tokenPersisted: false,
+      sameOriginDevelopmentProxy: "passed",
     }),
   );
 } finally {
   globalThis.fetch = realFetch;
+  if (proxy)
+    await new Promise((done) => {
+      proxy.close(done);
+      proxy.closeAllConnections();
+    });
   if (service.pid && service.exitCode === null && service.signalCode === null) {
     const exited = once(service, "exit");
     service.kill();

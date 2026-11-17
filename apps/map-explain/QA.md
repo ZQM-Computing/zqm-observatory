@@ -8,17 +8,17 @@ behavior, not real-world facts, source rights, or publication approval.
 
 | Check | Result |
 | --- | --- |
-| TypeScript/core regression tests | 78 passed, none skipped; includes durable sync, response contracts, recovery and IndexedDB regressions |
+| App and build/server regression tests | 85 passed, none skipped; includes durable sync, response contracts, recovery, IndexedDB and seven tooling groups |
 | TypeScript and production build | Passed; one bundled local app plus shell-only service worker |
 | Private-service/GIS tests | 17 passed, none skipped |
-| Optional client/service integration | Passed with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
-| Frontend dependency audit | Blocked: 4 high-severity entries from one unpatched picomatch advisory; runtime-only audit has 0 findings |
+| Optional client/service integration | Passed through the new same-origin development proxy with real loopback HTTP and temporary SQLite; lost-reply retry, fresh local read, later edits and an 8 MB project |
+| Frontend dependency audit | Affected dependency chain removed; fresh locked Windows install and full audit pending |
 | Existing Observatory governance tests | 167 passed; source-rights register and product structure checks passed |
 | Changed Markdown / whitespace | Passed |
 
-The [dependency audit record](../../docs/dependency-audit-2026-11-17.md) supersedes
-the earlier clean audit result. Functional test/build success does not clear this
-security gate; the durable-sync PR remains a draft pending remediation and CI.
+The [dependency audit record](../../docs/dependency-audit-2026-11-17.md) records the
+original failure and remediation. Functional test/build success does not clear the
+security gate; the durable-sync PR remains a draft pending clean CI verification.
 
 Core checks include known geodesic distance, threshold/weight semantics, strict
 query rejection, layer-name escaping and overlap, Polygon holes, known Mercator
@@ -38,8 +38,11 @@ preserves polygon holes and attributes. They run against temporary SQLite/files.
 Local tests/build passed with Node.js 22.23.5 and 24.22.1; private-service checks
 used Python 3.12.14. Parent PR #75 was independently checked at
 `181197e9eb3393da0bb672e10a70007a14f74ffd`: 33 app tests and the production build
-passed on Node 22.23.5. CI uses the trusted self-hosted Windows runner and remains
-separate evidence. A code merge does not establish passing CI or deployment.
+passed on Node 22.23.5. CI now uses standard hosted Windows 2022 for this public
+repository, retaining the same-repository trust guard and read-only permissions.
+A private repository falls back to the existing self-hosted Windows pool.
+The first hosted run reached the full audit and reproduced the dependency failure,
+confirming that runner routing works. CI remains separate from local evidence.
 
 ## Observed desktop workflows
 
@@ -170,6 +173,30 @@ The existing trusted Windows workflow includes this integration command after
 its Python service checks. Runner completion remains separate from local results.
 This does not claim an authenticated browser push/pull/conflict session or a
 physical browser crash/eviction test.
+
+## Build and runner troubleshooting — November 17, 2026
+
+The queued job had no assigned runner and required `self-hosted`, `Windows`,
+and `X64`. The hosted replacement ran the existing tests and build successfully,
+then failed at the unchanged full audit gate. Standard public-repository Windows
+runners require no new paid service.
+
+Rolldown and Lightning CSS now build the app without Vite or its affected matcher
+dependencies. Both versions were already present in the prior dependency graph;
+their native platform packages remain locked. The static styling foundation
+retains its license. Seven new test groups cover deterministic hashed output and
+precache completeness, safe build destinations, CSS import boundaries/cycles,
+offline API exclusion and shell fallback, static preview safety, and same-origin
+proxy forwarding/failure behavior. The real 8 MB sync check also uses the proxy.
+
+Desktop browser QA rendered all five workspace panels, ran the distance question
+with the expected eight synthetic results, and preserved the existing four-layer,
+49-feature project and hidden Warehouse state after reload. With the preview
+origin stopped, another reload loaded the new hashed assets from the shell cache
+and the same question still ran. The origin was then restarted. This validates
+the rebuilt shell, not authenticated browser sync or source permissions.
+
+![Rebuilt Observatory running the synthetic distance question](docs/qa/build-remediation.jpg)
 
 ## Verification limits
 
