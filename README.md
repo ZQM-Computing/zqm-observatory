@@ -134,6 +134,12 @@ python scripts/build_synthetic_product.py --output-dir build/synthetic-product -
 
 It produces deterministic normalized GeoJSON, a QA report, and SHA-256 provenance under `build/synthetic-product/`, then packages a standards-shaped draft under `build/synthetic-product-bundle/`. The draft intentionally fails the publication gate until a human privacy review is recorded; it is not a publishable product. Run `python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product` to check that the recorded input, pipeline source, normalized output, and QA report hashes still match. Compare normalized runs with `scripts/compare_product_runs.py` to identify added, removed, and changed features by stable ID, including geometry and attribute differences plus extent changes. Its optional `--movement-threshold-meters` flag reports great-circle coordinate movement above a configurable review threshold, and `--rules-json config/change-review-rules.example.json` adds configurable attribute/geometry review severities. Both are triage aids, not positional-accuracy evidence or publication approval. Invalid input fails closed and emits no normalized product. See [synthetic pipeline quickstart](docs/synthetic-pipeline.md) for the contract and limitations.
 
+Pipeline reruns revoke any earlier draft review before replacing assets, and
+write passing QA only after data and provenance succeed. Canonical demo bundles
+require verified fixture content; custom inputs remain artifact-only. The
+[maintenance record](docs/observatory-maintenance-2026-11-17.md) maps the older
+PRs to their adopted fixes and retained publication protections.
+
 ## First-product release workflow
 
 Start with a decision-relevant question and the smallest suitable product—not bulk collection.

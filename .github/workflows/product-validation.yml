@@ -98,7 +98,7 @@ jobs:
         run: python scripts/verify_synthetic_provenance.py --input tests/fixtures/synthetic-places.geojson --output-dir build/synthetic-product
       - name: Smoke-test baseline registry and product change report
         run: |
-          python scripts/baseline_registry.py register --registry build/baseline-registry.json --run-id synthetic-v1 --dataset build/synthetic-product/normalized.geojson --pipeline-version 0.1.0 --description "CI synthetic fixture"
+          python scripts/baseline_registry.py register --registry build/baseline-registry.json --run-id synthetic-v1 --dataset build/synthetic-product/normalized.geojson --pipeline-version 0.1.1 --description "CI synthetic fixture"
           python scripts/compare_product_runs.py --before build/synthetic-product/normalized.geojson --before-id synthetic-v1 --after build/synthetic-product/normalized.geojson --after-id synthetic-v1 --registry build/baseline-registry.json --output build/change-report/self-comparison.json
       - name: Smoke-test change release gate
         run: python scripts/evaluate_change_release.py --report build/change-report/self-comparison.json --rules-json config/release-gate-rules.example.json --output build/change-report/release-gate.json

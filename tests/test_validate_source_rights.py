@@ -16,6 +16,26 @@ REGISTER = json.loads((ROOT / "config" / "source-rights.json").read_text(encodin
 
 
 class SourceRightsValidatorTests(unittest.TestCase):
+
+    def test_internal_only_requires_explicit_non_public_permission(self):
+        for grant in (None, False, "automated_capture", "transformation", "spatial_join"):
+            with self.subTest(grant=grant):
+                document = copy.deepcopy(REGISTER)
+                source = document["sources"][0]
+                source["decision"] = "INTERNAL_ONLY"
+                source["terms_url"] = "https://example.gov/terms"
+                source["terms_evidence"] = ["captured terms evidence"]
+                source["required_attribution"] = "Example source"
+                source["unresolved_questions"] = []
+                source["permitted_uses"] = {key: None for key in source["permitted_uses"]}
+                if isinstance(grant, str):
+                    source["permitted_uses"][grant] = True
+                    self.assertEqual(validate_document(document), [])
+                else:
+                    source["permitted_uses"] = {key: grant for key in source["permitted_uses"]}
+                    self.assertTrue(any("INTERNAL_ONLY requires at least one explicitly permitted non-public use"
+                                        in error for error in validate_document(document)))
+
     def test_cli_rejects_duplicate_json_keys(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "source-rights.json"
@@ -94,9 +114,11 @@ class SourceRightsValidatorTests(unittest.TestCase):
         self.assertTrue(any("layer_id must be null for a non-layer service URL" in error for error in validate_document(document)))
 
     def test_invalid_url_is_rejected(self):
-        document = copy.deepcopy(REGISTER)
-        document["sources"][0]["service_url"] = "http://example.gov/data"
-        self.assertTrue(any("service_url must be a valid HTTPS URL" in error for error in validate_document(document)))
+        for url in ("http://example.gov/data", "https://[broken", "https://example.gov:bad/data"):
+            with self.subTest(url=url):
+                document = copy.deepcopy(REGISTER)
+                document["sources"][0]["service_url"] = url
+                self.assertTrue(any("service_url must be a valid HTTPS URL" in error for error in validate_document(document)))
 
     def test_blocked_source_needs_open_questions(self):
         document = copy.deepcopy(REGISTER)

@@ -87,12 +87,13 @@ def validate_document(document: Any) -> list[str]:
         for field in ("title", "publisher", "intended_product", "reviewer"):
             if not isinstance(source[field], str) or not source[field].strip():
                 errors.append(f"{label}.{field} must be a non-empty string")
-        if not https_url(source["service_url"]):
+        valid_service_url = https_url(source["service_url"])
+        if not valid_service_url:
             errors.append(f"{label}.service_url must be a valid HTTPS URL")
         layer_id = source["layer_id"]
         if layer_id is not None and (not isinstance(layer_id, int) or isinstance(layer_id, bool) or layer_id < 0):
             errors.append(f"{label}.layer_id must be null or a non-negative integer")
-        parsed_service_url = urlparse(source["service_url"]) if isinstance(source["service_url"], str) else None
+        parsed_service_url = urlparse(source["service_url"]) if valid_service_url else None
         if parsed_service_url is not None:
             match = re.search(r"/FeatureServer/(\d+)/?$", parsed_service_url.path)
             if match and layer_id != int(match.group(1)):
@@ -136,6 +137,8 @@ def validate_document(document: Any) -> list[str]:
                 errors.append(f"{label}: conditional approval must identify at least one explicitly permitted use")
             if decision == "INTERNAL_ONLY" and any(uses.get(use) is True for use in PUBLIC_USES):
                 errors.append(f"{label}: INTERNAL_ONLY cannot permit public display or redistribution")
+            if decision == "INTERNAL_ONLY" and not any(uses.get(use) is True for use in USES - PUBLIC_USES):
+                errors.append(f"{label}: INTERNAL_ONLY requires at least one explicitly permitted non-public use; unknown is not permission")
         if decision == "BLOCKED_PENDING_REVIEW" and (not isinstance(source["unresolved_questions"], list) or not source["unresolved_questions"]):
             errors.append(f"{label}: blocked source must state unresolved questions")
         if decision == "REJECTED" and (not isinstance(source["unresolved_questions"], list) or not source["unresolved_questions"]):

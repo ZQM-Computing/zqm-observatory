@@ -32,6 +32,11 @@ Never infer that permission for internal viewing also allows redistribution, com
 
 If a material permission is unclear, leave public publication blocked. Internal-only use is permitted only if the available terms themselves allow that use; it is not a default workaround for prohibited or uncertain access.
 
+The register validator requires `INTERNAL_ONLY` to name at least one explicitly
+permitted non-public operation (`automated_capture`, `transformation`, or
+`spatial_join`). All-false or unknown permissions cannot establish this decision;
+public display and redistribution remain disallowed.
+
 ## 3. Suggested request to the data steward
 
 Adapt this message to the exact dataset; do not send it automatically.

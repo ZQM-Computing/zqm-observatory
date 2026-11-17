@@ -15,9 +15,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
-PIPELINE_VERSION = "0.1.0"
+try:
+    from scripts.verify_synthetic_provenance import verify
+except ModuleNotFoundError:
+    from verify_synthetic_provenance import verify
+
+PIPELINE_VERSION = "0.1.1"
 REQUIRED_PROPERTIES = {"id", "name", "category"}
 DEMO_PRODUCT_ID = "2026-10-25-synthetic-geospatial-demo"
+CANONICAL_FIXTURE = Path(__file__).resolve().parents[1] / "tests/fixtures/synthetic-places.geojson"
+ASSET_NAMES = ("normalized.geojson", "qa-report.json", "provenance.json")
 
 
 def canonical_json(value: Any) -> bytes:
@@ -75,7 +82,7 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
                 invalid_property = True
         if invalid_property:
             continue
-        feature_id = properties.get("id")
+        feature_id = properties["id"].strip()
         if isinstance(feature_id, str) and feature_id:
             if feature_id in seen_ids:
                 errors.append(f"{label}: duplicate feature id {feature_id!r}")
@@ -132,6 +139,7 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
             feature.get("geometry", {}).get("type", "missing")
             for feature in features if isinstance(feature, dict)
             and isinstance(feature.get("geometry"), dict)
+            and isinstance(feature["geometry"].get("type"), str)
         }),
         "coordinate_reference": "OGC:CRS84 (GeoJSON longitude, latitude order)",
         "bbox": bbox,
@@ -149,42 +157,58 @@ def normalize(document: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str
     output = {
         "type": "FeatureCollection",
         "name": "observatory-synthetic-demo",
-        "bbox": bbox,
         "features": normalized,
     }
+    if bbox is not None:
+        output["bbox"] = bbox
     return output, qa, []
 
 
+def clear_outputs(output_dir: Path) -> None:
+    # Invalidate the passing QA marker before removing its associated artifacts.
+    for name in ("qa-report.json", "provenance.json", "normalized.geojson"):
+        (output_dir / name).unlink(missing_ok=True)
+
+
 def build(input_path: Path, output_dir: Path) -> int:
+    try:
+        return build_outputs(input_path, output_dir)
+    except (OSError, ValueError) as exc:
+        errors = [f"pipeline output failed: {exc}"]
+        try:
+            clear_outputs(output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            (output_dir / "qa-report.json").write_bytes(canonical_json(failure_report(errors)))
+        except OSError as cleanup_error:
+            errors.append(f"output cleanup/report failed: {cleanup_error}")
+        print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
+        return 1
+
+
+def failure_report(errors: list[str]) -> dict[str, Any]:
+    return {
+        "schema_version": 1,
+        "pipeline_version": PIPELINE_VERSION,
+        "status": "failed",
+        "feature_count_input": None,
+        "feature_count_output": 0,
+        "checks": {},
+        "errors": errors,
+    }
+
+
+def build_outputs(input_path: Path, output_dir: Path) -> int:
     document, raw, errors = load_geojson(input_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    clear_outputs(output_dir)
     if document is None or errors:
-        qa = {
-            "schema_version": 1,
-            "pipeline_version": PIPELINE_VERSION,
-            "status": "failed",
-            "feature_count_input": None,
-            "feature_count_output": 0,
-            "checks": {},
-            "errors": errors,
-        }
-        output_dir.mkdir(parents=True, exist_ok=True)
-        for name in ("normalized.geojson", "provenance.json"):
-            target = output_dir / name
-            if target.exists():
-                target.unlink()
-        (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
+        (output_dir / "qa-report.json").write_bytes(canonical_json(failure_report(errors)))
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
 
     normalized, qa, errors = normalize(document)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
     if normalized is None or errors:
-        # Fail closed: no normalized data or provenance is emitted for bad input.
-        for name in ("normalized.geojson", "provenance.json"):
-            target = output_dir / name
-            if target.exists():
-                target.unlink()
+        (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
         print("\n".join(f"ERROR: {error}" for error in errors), file=sys.stderr)
         return 1
 
@@ -215,16 +239,37 @@ def build(input_path: Path, output_dir: Path) -> int:
     }
     (output_dir / "normalized.geojson").write_bytes(normalized_bytes)
     (output_dir / "provenance.json").write_bytes(canonical_json(provenance))
+    # A passing report is committed only after both artifacts have been written.
+    (output_dir / "qa-report.json").write_bytes(canonical_json(qa))
     print(f"Pipeline passed: {len(normalized['features'])} features; publication remains unauthorized.")
     return 0
 
 
 
-def write_draft_bundle(output_dir: Path, bundle_root: Path) -> Path:
-    """Package outputs as a standards-shaped draft that remains review-blocked."""
+def clear_draft_bundle(bundle_root: Path) -> Path:
     bundle = bundle_root / DEMO_PRODUCT_ID
+    if bundle.is_symlink():
+        raise ValueError("draft bundle directory must not be a symlink")
+    # Revoke an earlier approval first. Only pipeline-owned files are removed.
+    for name in ("product.json", *ASSET_NAMES, "sources.json", "method.md"):
+        (bundle / name).unlink(missing_ok=True)
+    return bundle
+
+
+def write_draft_bundle(output_dir: Path, bundle_root: Path) -> Path:
+    """Package only verified canonical fixture outputs as a review-blocked draft."""
+    bundle = clear_draft_bundle(bundle_root)
+    errors = verify(CANONICAL_FIXTURE, output_dir)
+    if errors:
+        raise ValueError("draft bundles require verified canonical synthetic fixture outputs: " + "; ".join(errors))
+    fixture, _, errors = load_geojson(CANONICAL_FIXTURE)
+    if errors or fixture is None:
+        raise ValueError("canonical synthetic fixture cannot be read")
+    expected, qa, errors = normalize(fixture)
+    if errors or any((output_dir / name).read_bytes() != canonical_json(value) for name, value in (("normalized.geojson", expected), ("qa-report.json", qa))):
+        raise ValueError("draft bundles require canonical synthetic fixture content and QA")
     bundle.mkdir(parents=True, exist_ok=True)
-    asset_names = ("normalized.geojson", "qa-report.json", "provenance.json")
+    asset_names = ASSET_NAMES
     for name in asset_names:
         shutil.copyfile(output_dir / name, bundle / name)
 
@@ -282,9 +327,9 @@ All data is synthetic; no external source was collected and no field conditions 
 
 Run `python scripts/build_synthetic_product.py --output-dir build/synthetic-product --bundle-dir build/synthetic-product-bundle`. Outputs are deterministic for identical input bytes and pipeline version. This fixture does not validate real source licensing, real-world accuracy, geometry topology, or scientific suitability.
 """
-    (bundle / "product.json").write_bytes(canonical_json(product))
     (bundle / "sources.json").write_bytes(canonical_json(sources))
     (bundle / "method.md").write_text(method, encoding="utf-8")
+    (bundle / "product.json").write_bytes(canonical_json(product))
     return bundle
 
 
@@ -294,10 +339,16 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, default=Path("build/synthetic-product"))
     parser.add_argument("--bundle-dir", type=Path, help="optional root directory for a standards-shaped, review-blocked draft bundle")
     args = parser.parse_args()
-    result = build(args.input, args.output_dir)
-    if result == 0 and args.bundle_dir is not None:
-        bundle = write_draft_bundle(args.output_dir, args.bundle_dir)
-        print(f"Draft product bundle created at {bundle}; publication remains blocked pending human privacy review.")
+    try:
+        if args.bundle_dir is not None:
+            clear_draft_bundle(args.bundle_dir)
+        result = build(args.input, args.output_dir)
+        if result == 0 and args.bundle_dir is not None:
+            bundle = write_draft_bundle(args.output_dir, args.bundle_dir)
+            print(f"Draft product bundle created at {bundle}; publication remains blocked pending human privacy review.")
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
     return result
 
 
