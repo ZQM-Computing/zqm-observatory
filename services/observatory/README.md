@@ -31,8 +31,8 @@ The service defaults to `127.0.0.1:8789`, SQLite at
 `runtime/observatory.sqlite`, and the frontend at `../../apps/map-explain/dist`.
 `--host`, `--port`, `--db`, and `--static` override these paths/settings. The token
 is not printed. Runtime files and virtual environments are ignored by Git.
-Open the service origin for production-build offline support, or use the Vite
-frontend during development (its same-origin `/api` proxy targets port 8789).
+Open the service origin for production-build offline support, or run `npm run dev`
+in `apps/map-explain` (its same-origin `/api` proxy targets port 8789).
 
 ## API contract
 
