@@ -32,6 +32,10 @@ patterns, backups, offline behavior, privacy, and limits. The [verification
 record](apps/map-explain/QA.md) separates local results, browser observations,
 remaining device checks, and GitHub CI status.
 
+The current build-dependency security gate is blocked by an unpatched advisory.
+See the [dated audit record](docs/dependency-audit-2026-11-17.md) for the affected
+dependency chain, reproduction commands, and merge/release requirements.
+
 ## Integrated Observatory workspaces
 
 The [local application](apps/map-explain/README.md) connects five workspaces
