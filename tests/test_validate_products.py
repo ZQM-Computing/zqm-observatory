@@ -18,8 +18,7 @@ class ProductValidationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
-    def make_product(self) -> Path:
-        folder = "2026-10-25-volusia-community-brief"
+    def make_product(self, folder: str = "2026-10-25-volusia-community-brief") -> Path:
         product_dir = self.data / folder
         product_dir.mkdir()
         product = {
@@ -86,6 +85,37 @@ class ProductValidationTests(unittest.TestCase):
     def test_complete_bundle_passes_structural_gate(self) -> None:
         product_dir = self.make_product()
         self.assertEqual(validate_product(product_dir), [])
+
+    def test_noncanonical_declared_paths_are_rejected(self) -> None:
+        bundle = self.make_product()
+        product_path = bundle / "product.json"
+        product = json.loads(product_path.read_text(encoding="utf-8"))
+        for declaration in ("./brief.csv", "supporting//extra.csv"):
+            with self.subTest(declaration=declaration):
+                product["data_files"] = [declaration]
+                product_path.write_text(json.dumps(product), encoding="utf-8")
+                errors = validate_product(bundle)
+                self.assertTrue(any("unsafe data_files entry" in error for error in errors), errors)
+
+    def test_malformed_url_does_not_skip_later_bundles(self) -> None:
+        first = self.make_product()
+        sources_path = first / "sources.json"
+        sources = json.loads(sources_path.read_text(encoding="utf-8"))
+        sources[0].update(url="https://[broken", retrieval_date="invalid")
+        sources_path.write_text(json.dumps(sources), encoding="utf-8")
+        later = self.make_product("2026-10-25-z-later-brief")
+        (later / "brief.csv").unlink()
+        errors = validate_data_dir(self.data)
+        self.assertTrue(any("valid HTTPS URL" in error and str(first) in error for error in errors), errors)
+        self.assertTrue(any("retrieval_date" in error and str(first) in error for error in errors), errors)
+        self.assertTrue(any("listed data file does not exist" in error and str(later) in error for error in errors), errors)
+
+    def test_symlink_loop_is_rejected_across_the_bundle(self) -> None:
+        bundle = self.make_product()
+        loop = bundle / "loop"
+        loop.symlink_to("loop", target_is_directory=True)
+        errors = validate_product(bundle)
+        self.assertTrue(any("symlinks are not allowed inside product bundles" in error and str(loop) in error for error in errors), errors)
 
     def test_incorrect_top_level_json_types_are_rejected(self) -> None:
         product_dir = self.make_product()

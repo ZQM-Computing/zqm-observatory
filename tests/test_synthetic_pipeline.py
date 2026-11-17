@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import subprocess
+import sys
+from unittest.mock import patch
 import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.build_synthetic_product import build, write_draft_bundle
+from scripts.build_synthetic_product import DEMO_PRODUCT_ID, build, write_draft_bundle
 from scripts.verify_synthetic_provenance import verify
 from scripts.compare_product_runs import compare
 from scripts.validate_products import validate_product
@@ -16,6 +20,185 @@ FIXTURE = Path(__file__).parent / "fixtures" / "synthetic-places.geojson"
 
 
 class SyntheticPipelineTests(unittest.TestCase):
+    def test_unreadable_input_clears_stale_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output = root / "out"
+            directory = root / "directory.geojson"; directory.mkdir()
+            for source in (root / "missing.geojson", directory):
+                with self.subTest(source=source.name):
+                    self.assertEqual(build(FIXTURE, output), 0)
+                    self.assertEqual(build(source, output), 1)
+                    qa = json.loads((output / "qa-report.json").read_bytes())
+                    self.assertEqual(qa["status"], "failed")
+                    self.assertIn("input cannot be read", qa["errors"][0])
+                    self.assertFalse((output / "normalized.geojson").exists())
+                    self.assertFalse((output / "provenance.json").exists())
+
+    def test_draft_rebuild_rejects_symlink_directory_without_touching_target(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            self.assertEqual(build(FIXTURE, output), 0)
+            outside = root / "outside"; outside.mkdir()
+            sentinel = outside / "product.json"
+            sentinel.write_text("Retain the unrelated target", encoding="utf-8")
+            bundles.mkdir()
+            (bundles / DEMO_PRODUCT_ID).symlink_to(outside, target_is_directory=True)
+            with self.assertRaisesRegex(ValueError, "must not be a symlink"):
+                write_draft_bundle(output, bundles)
+            self.assertEqual(sentinel.read_text(encoding="utf-8"), "Retain the unrelated target")
+
+
+    def test_draft_rejects_tampered_and_rehashed_assets_without_deleting_unowned_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            self.assertEqual(build(FIXTURE, output), 0)
+            bundle = write_draft_bundle(output, bundles)
+            note = bundle / "review-notes.txt"
+            note.write_text("Retain this local review note", encoding="utf-8")
+            normalized = output / "normalized.geojson"
+            data = json.loads(normalized.read_bytes())
+            data["features"][0]["properties"]["name"] = "Changed content"
+            normalized.write_text(json.dumps(data), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "canonical synthetic fixture"):
+                write_draft_bundle(output, bundles)
+            self.assertFalse((bundle / "product.json").exists())
+            self.assertTrue(note.exists())
+            provenance_path = output / "provenance.json"
+            provenance = json.loads(provenance_path.read_bytes())
+            provenance["output"]["sha256"] = hashlib.sha256(normalized.read_bytes()).hexdigest()
+            provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+            self.assertEqual(verify(FIXTURE, output), [])
+            with self.assertRaisesRegex(ValueError, "canonical synthetic fixture content"):
+                write_draft_bundle(output, bundles)
+            self.assertTrue(note.exists())
+
+    def test_failure_to_write_passing_qa_clears_data_and_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            original_write = Path.write_bytes
+
+            def fail_passing_qa(path: Path, data: bytes) -> int:
+                if path.name == "qa-report.json" and json.loads(data)["status"] == "passed":
+                    raise OSError("simulated QA commit failure")
+                return original_write(path, data)
+
+            with patch.object(Path, "write_bytes", fail_passing_qa):
+                self.assertEqual(build(FIXTURE, output), 1)
+            self.assertEqual(json.loads((output / "qa-report.json").read_bytes())["status"], "failed")
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
+    def test_cli_rerun_clears_draft_and_rejects_noncanonical_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            bundle = bundles / DEMO_PRODUCT_ID
+            command = [sys.executable, str(FIXTURE.parents[2] / "scripts/build_synthetic_product.py"),
+                       "--output-dir", str(output), "--bundle-dir", str(bundles)]
+            for invalid in ("{not json", '{"type":"FeatureCollection","features":[]}',
+                            '{"type":"FeatureCollection","features":[{}]}'):
+                with self.subTest(invalid=invalid):
+                    success = subprocess.run(command + ["--input", str(FIXTURE)], capture_output=True)
+                    self.assertEqual(success.returncode, 0, success.stderr)
+                    self.assertTrue((bundle / "product.json").exists())
+                    source = root / "custom.geojson"
+                    source.write_text(invalid, encoding="utf-8")
+                    failed = subprocess.run(command + ["--input", str(source)], capture_output=True)
+                    self.assertEqual(failed.returncode, 1, failed.stderr)
+                    self.assertEqual(list(bundle.iterdir()), [])
+                    qa = json.loads((output / "qa-report.json").read_bytes())
+                    if qa["status"] == "failed":
+                        self.assertFalse((output / "normalized.geojson").exists())
+                        self.assertFalse((output / "provenance.json").exists())
+                    else:
+                        self.assertIn(b"canonical synthetic fixture", failed.stderr)
+                        # Custom inputs remain supported for artifact-only builds.
+                        artifact_only = command[:4] + ["--input", str(source)]
+                        self.assertEqual(subprocess.run(artifact_only, capture_output=True).returncode, 0)
+
+    def test_interrupted_bundle_rebuild_revokes_previous_approval(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            output, bundles = root / "out", root / "bundles"
+            self.assertEqual(build(FIXTURE, output), 0)
+            bundle = write_draft_bundle(output, bundles)
+            product_path = bundle / "product.json"
+            product = json.loads(product_path.read_bytes())
+            product["privacy_review"].update(reviewed=True, reviewed_by="Synthetic test reviewer")
+            product_path.write_text(json.dumps(product), encoding="utf-8")
+            self.assertEqual(validate_product(bundle), [])
+            with patch("scripts.build_synthetic_product.shutil.copyfile", side_effect=OSError("interrupted")):
+                with self.assertRaises(OSError):
+                    write_draft_bundle(output, bundles)
+            self.assertFalse(product_path.exists())
+            self.assertTrue(validate_product(bundle))
+
+    def test_whitespace_duplicate_ids_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            raw = json.loads(FIXTURE.read_text(encoding="utf-8"))
+            raw["features"][1]["properties"]["id"] = " " + raw["features"][0]["properties"]["id"] + " "
+            source = root / "duplicate.geojson"
+            source.write_text(json.dumps(raw), encoding="utf-8")
+            output = root / "out"
+            self.assertEqual(build(FIXTURE, output), 0)
+            self.assertEqual(build(source, output), 1)
+            qa = json.loads((output / "qa-report.json").read_bytes())
+            self.assertFalse(qa["checks"]["unique_ids"])
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
+    def test_malformed_geometry_types_remove_stale_outputs(self) -> None:
+        for geometry_type in ([], {}, None, 17, ["Point"]):
+            with self.subTest(geometry_type=geometry_type), tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                output = root / "out"
+                self.assertEqual(build(FIXTURE, output), 0)
+                raw = json.loads(FIXTURE.read_bytes())
+                raw["features"][0]["geometry"]["type"] = geometry_type
+                source = root / "invalid.geojson"
+                source.write_text(json.dumps(raw), encoding="utf-8")
+                self.assertEqual(build(source, output), 1)
+                qa = json.loads((output / "qa-report.json").read_bytes())
+                self.assertEqual(qa["status"], "failed")
+                self.assertFalse(qa["checks"]["point_geometry"])
+                self.assertFalse((output / "normalized.geojson").exists())
+                self.assertFalse((output / "provenance.json").exists())
+
+    def test_empty_collection_omits_bbox(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "empty.geojson"
+            source.write_text(json.dumps({"type": "FeatureCollection", "features": []}), encoding="utf-8")
+            self.assertEqual(build(source, root / "out"), 0)
+            output = json.loads((root / "out/normalized.geojson").read_bytes())
+            self.assertEqual(output["features"], [])
+            self.assertNotIn("bbox", output)
+            qa = json.loads((root / "out/qa-report.json").read_bytes())
+            self.assertIsNone(qa["bbox"])
+            self.assertEqual(qa["status"], "passed")
+
+    def test_output_write_failure_removes_stale_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output = Path(tmp) / "out"
+            original_write = Path.write_bytes
+
+            def fail_provenance(path: Path, data: bytes) -> int:
+                if path.name == "provenance.json":
+                    raise OSError("simulated write failure")
+                return original_write(path, data)
+
+            self.assertEqual(build(FIXTURE, output), 0)
+            with patch.object(Path, "write_bytes", fail_provenance):
+                self.assertEqual(build(FIXTURE, output), 1)
+            self.assertEqual(json.loads((output / "qa-report.json").read_bytes())["status"], "failed")
+            self.assertFalse((output / "normalized.geojson").exists())
+            self.assertFalse((output / "provenance.json").exists())
+
     def test_build_is_deterministic_and_emits_provenance(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

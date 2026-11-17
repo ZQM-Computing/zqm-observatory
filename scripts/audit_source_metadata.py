@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 import sys
+from http.client import HTTPException
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -43,7 +44,8 @@ def layer_metadata_url(value: Any, expected_layer_id: Any = None) -> tuple[str |
     except ValueError:
         return None, "malformed URL or port"
     expected_prefix = "/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
-    if not parsed.path.startswith(expected_prefix) or not parsed.path[len(expected_prefix):].isdigit():
+    suffix = parsed.path[len(expected_prefix):]
+    if not parsed.path.startswith(expected_prefix) or not suffix.isascii() or not suffix.isdigit():
         return None, "not an allowlisted ArcGIS layer URL; skipped without network request"
     try:
         path_layer_id = int(parsed.path[len(expected_prefix):])
@@ -140,8 +142,8 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         try:
             payload = json.loads(raw.decode("utf-8"))
             metadata = summarize_metadata(payload)
-            expected_layer_id = source.get("layer_id")
-            if expected_layer_id is not None and metadata["layer_id"] != expected_layer_id:
+            expected_layer_id = int(urlparse(url).path.rsplit("/", 1)[1])
+            if metadata["layer_id"] != expected_layer_id:
                 raise ValueError("response layer id does not match registered layer id")
             result["metadata"] = metadata
         except (UnicodeError, json.JSONDecodeError, ValueError) as exc:
@@ -155,7 +157,7 @@ def capture_one(source: dict[str, Any], opener=None) -> dict[str, Any]:
         return result
     except HTTPError as exc:
         result.update(status="ERROR", http_status=exc.code, reason=f"HTTP error {exc.code}")
-    except (URLError, TimeoutError, OSError) as exc:
+    except (URLError, TimeoutError, OSError, HTTPException) as exc:
         result.update(status="ERROR", reason=f"request failed: {exc}")
     return result
 

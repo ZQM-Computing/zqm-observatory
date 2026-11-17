@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr
+from http.client import BadStatusLine, IncompleteRead
 from unittest.mock import patch
 from pathlib import Path
 
@@ -48,6 +49,57 @@ class FakeOpener:
 
 
 class MetadataPreflightTests(unittest.TestCase):
+
+    def test_protocol_failure_is_reported_and_remaining_sources_complete(self):
+        for failure in (IncompleteRead(b"partial", 20), BadStatusLine("invalid status")):
+            with self.subTest(failure=type(failure).__name__):
+                class FailingResponse(FakeResponse):
+                    def read(self, limit=-1):
+                        raise failure
+
+                class SequenceOpener:
+                    def __init__(self):
+                        self.responses = iter([FailingResponse(b""), FakeResponse(b'{"id":32,"name":"Trails","fields":[]}')])
+
+                    def open(self, request, timeout):
+                        return next(self.responses)
+
+                register = json.loads(json.dumps(REGISTER))
+                source = next(s for s in register["sources"] if s["id"] == "volusia-trails-layer-32")
+                other = json.loads(json.dumps(source)); other["id"] = "synthetic-second-metadata-source"
+                register["sources"] = [source, other]
+                report = build_report(register, opener=SequenceOpener())
+                self.assertEqual(report["counts"]["errors"], 1)
+                self.assertEqual(report["counts"]["ok"], 1)
+                self.assertIn("request failed", report["sources"][0]["reason"])
+                self.assertEqual(json.loads(json.dumps(report))["sources"][1]["status"], "OK")
+
+    def test_capture_without_registered_id_still_checks_response_against_url(self):
+        source = {"service_url":"https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32"}
+        result = capture_one(source, opener=FakeOpener(FakeResponse(b'{"id":31,"name":"Wrong layer","fields":[]}')))
+        self.assertEqual(result["status"], "ERROR")
+        self.assertNotIn("metadata", result)
+
+    def test_non_ascii_and_empty_layer_ids_are_skipped_without_request(self):
+        prefix = "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/"
+        for suffix in ("", "²", "٣", "３", "3²", "32/query"):
+            with self.subTest(suffix=suffix):
+                opener = FakeOpener(FakeResponse(b"{}"))
+                result = capture_one({"service_url": prefix + suffix}, opener=opener)
+                self.assertEqual(result["status"], "SKIPPED")
+                self.assertIsNone(opener.request)
+
+    def test_capture_rejects_wrong_layer_and_invalid_id_types(self):
+        source = next(s for s in REGISTER["sources"] if s["id"] == "volusia-trails-layer-32")
+        for layer_id in (4, "32", None):
+            with self.subTest(layer_id=layer_id):
+                raw = json.dumps({"id": layer_id, "name": "Trails", "fields": []}).encode()
+                result = capture_one(source, opener=FakeOpener(FakeResponse(raw)))
+                self.assertEqual(result["status"], "ERROR")
+                self.assertNotIn("metadata", result)
+                self.assertNotIn("collection_gate", result)
+                self.assertIn("layer id", result["reason"])
+
     def test_only_allowlisted_arcgis_layer_urls_are_eligible(self):
         url, reason = layer_metadata_url(
             "https://maps5.vcgov.org/arcgis/rest/services/Open_Data/Open_Data_4/FeatureServer/32"
