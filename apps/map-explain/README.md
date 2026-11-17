@@ -45,6 +45,7 @@ an analysis turns it into another project layer with input-source lineage.
 Project & Sync provides portable JSON bundles, local history/restoration, private
 project links, explicit push/pull, queued local changes, and three-way conflict
 review. Sync is manual; there is no background upload or live multiplayer channel.
+Opening another project also saves a local recovery copy before replacing it.
 
 ## Question patterns
 
@@ -106,6 +107,21 @@ Project bundles use compact JSON so an accepted project stays within the same
 8 MB restore limit. Export a project bundle for backup. A successful save is reported only after the
 IndexedDB transaction completes; another tab cannot silently overwrite a newer
 local revision.
+
+**Local recovery copies:** opening a bundle, shared project, or recovered copy
+retains the replaced document in the same transaction. If storage fails, neither
+replacement nor recovery is committed. Project & Sync lists up to three copies
+within a combined 12 MB UTF-8 budget, newest first; older copies are pruned as
+needed. Copies include saved photos and source notes, without undo/sync queues or
+the workspace token. They are unencrypted and remain subject to browser eviction.
+
+Export any recovery copy as a normal project bundle, or review and open it with a
+fresh project ID, no shared revision, and no automatic upload. The original server
+copy is separate. At the 8 MB ceiling, if a longer new ID cannot fit, export/import
+the recovery file to preserve its original identity. Deleting recovery copies
+keeps the active project. Replacing device data with synthetic examples removes
+the active document, undo history, photos, and every retained recovery copy after
+confirmation. Exported files and server copies are separate.
 
 The production build installs a service worker that caches its own app shell
 and bundled assets. After a successful online visit, the shell can load with the

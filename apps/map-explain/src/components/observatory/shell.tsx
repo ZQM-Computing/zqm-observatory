@@ -25,9 +25,15 @@ import {
 } from "../../lib/observatory/model";
 import {
   loadLocal,
+  loadRecoveryCopies,
   LocalConflict,
   saveLocal,
+  type SaveOptions,
 } from "../../lib/observatory/store";
+import {
+  recoveredProject,
+  type RecoveryCopy,
+} from "../../lib/observatory/recovery";
 import {
   pull,
   push,
@@ -107,6 +113,12 @@ export function Observatory() {
     } | null>(null),
     [choices, setChoices] = useState<Choices>({});
   const pendingSend = useRef<Send | null>(null);
+  const incomingReview = useRef<HTMLElement | null>(null);
+  const [recoveryCopies, setRecoveryCopies] = useState<RecoveryCopy[]>([]),
+    [recoveryError, setRecoveryError] = useState("");
+  useEffect(() => {
+    if (incoming) incomingReview.current?.focus();
+  }, [incoming]);
   function show(message: string, error = false) {
     setNotice(message);
     setNoticeError(error);
@@ -126,6 +138,12 @@ export function Observatory() {
         }
       }
       if (!loaded) throw new Error("Local workspace could not be initialized.");
+      try {
+        const copies = await loadRecoveryCopies();
+        if (live) setRecoveryCopies(copies);
+      } catch (e) {
+        if (live) setRecoveryError(e instanceof Error ? e.message : String(e));
+      }
       if (live) {
         current.current = loaded;
         setState(loaded);
@@ -143,16 +161,24 @@ export function Observatory() {
       window.removeEventListener("offline", connected);
     };
   }, []);
-  async function persist(next: LocalState, expected: number) {
+  async function persist(
+    next: LocalState,
+    expected: number,
+    options: SaveOptions = {},
+  ) {
     if (saving.current)
       throw new Error(
         "A local save is already running. Retry after it completes.",
       );
     saving.current = true;
     try {
-      await saveLocal(next, expected);
+      const copies = await saveLocal(next, expected, options);
       current.current = next;
       setState(next);
+      if (copies) {
+        setRecoveryCopies(copies);
+        setRecoveryError("");
+      }
       show("Saved on this device.");
     } finally {
       saving.current = false;
@@ -313,11 +339,12 @@ export function Observatory() {
               {
                 id: id(),
                 revision: local.revision + 1,
-                summary: "Imported project bundle",
+                summary: `Opened project from ${incoming.source}`,
               },
             ],
       },
       local.revision,
+      { archiveReason: "Before opening another project" },
     );
     setProjectName(incoming.document.name);
     setIncoming(null);
@@ -528,6 +555,94 @@ export function Observatory() {
                   }}
                 />
               </Field>
+              <section
+                className="analysis-result"
+                aria-label="Local recovery copies"
+              >
+                <h3>Local recovery copies</h3>
+                <p className="small">
+                  Opening another project keeps a copy of the current document,
+                  including photos. Up to three copies fit within 12 MB; older
+                  copies are removed first. These stay on this device and can be
+                  lost when browser data is cleared. Export a file for durable
+                  backup.
+                </p>
+                {recoveryError && (
+                  <p role="alert">
+                    {recoveryError} Export your current project before deleting
+                    invalid recovery copies.
+                  </p>
+                )}
+                {!recoveryCopies.length && !recoveryError && (
+                  <p className="small">No replaced projects to recover yet.</p>
+                )}
+                {recoveryCopies.map((copy) => (
+                  <article className="record" key={copy.id}>
+                    <strong>{copy.project.name}</strong>
+                    <small>
+                      {new Date(copy.savedAt).toLocaleString()} ·{" "}
+                      {copy.project.layers.length} layers
+                    </small>
+                    <p className="small">{copy.reason}</p>
+                    <div className="actions">
+                      <button
+                        onClick={() =>
+                          download(
+                            projectBundle(copy.project),
+                            "observatory-recovery.json",
+                          )
+                        }
+                      >
+                        Export recovery copy
+                      </button>
+                      <button
+                        disabled={busy}
+                        onClick={() =>
+                          perform(() => {
+                            setIncoming({
+                              document: recoveredProject(copy),
+                              revision: 0,
+                              source: "local recovery with a new project ID",
+                            });
+                            setMerging(null);
+                          })
+                        }
+                      >
+                        Review recovered copy
+                      </button>
+                    </div>
+                  </article>
+                ))}
+                <p className="small">
+                  A recovered copy gets a new project ID and starts without a
+                  shared revision. Review it before opening; the original server
+                  project is separate.
+                </p>
+                <button
+                  disabled={busy || (!recoveryCopies.length && !recoveryError)}
+                  onClick={() =>
+                    perform(async () => {
+                      if (
+                        !window.confirm(
+                          "Permanently delete all local recovery copies, including their photos? The active project, exported files and server copies are separate.",
+                        )
+                      )
+                        return;
+                      const latest = current.current!;
+                      await persist(
+                        { ...latest, revision: latest.revision + 1 },
+                        latest.revision,
+                        { clearRecovery: true },
+                      );
+                      show(
+                        "Local recovery copies deleted. The active project is still on this device.",
+                      );
+                    })
+                  }
+                >
+                  Delete recovery copies
+                </button>
+              </section>
               <section className="analysis-result">
                 <h3>Private project sync</h3>
                 <p className="small">
@@ -605,7 +720,12 @@ export function Observatory() {
                 </div>
               </section>
               {incoming && (
-                <section className="analysis-result">
+                <section
+                  className="analysis-result"
+                  ref={incomingReview}
+                  tabIndex={-1}
+                  aria-label="Review incoming project"
+                >
                   <h3>Review incoming project</h3>
                   <p>
                     {incoming.document.name} · {incoming.document.layers.length}{" "}
@@ -613,8 +733,9 @@ export function Observatory() {
                   </p>
                   <p className="small">
                     Opening this replaces the local document and its undo
-                    history. Export the current project first if you need to
-                    keep it.
+                    history. A local recovery copy is saved in the same
+                    transaction. Export the current project for a durable
+                    backup.
                   </p>
                   <div className="actions">
                     <button
@@ -756,7 +877,7 @@ export function Observatory() {
                     perform(async () => {
                       if (
                         !window.confirm(
-                          "Replace this device project, photos, and undo history with synthetic examples? Export a backup first.",
+                          "Replace this device project, photos, undo history, and all recovery copies with synthetic examples? Export a backup first.",
                         )
                       )
                         return;
@@ -765,11 +886,12 @@ export function Observatory() {
                       await persist(
                         { ...fresh, revision: latest.revision + 1 },
                         latest.revision,
+                        { clearRecovery: true },
                       );
                       clearView();
                       setProjectName(fresh.project.name);
                       show(
-                        "Local project, photo records, and undo history replaced with synthetic examples. Existing exported files and server copies are separate.",
+                        "Local project, photo records, undo history, and recovery copies replaced with synthetic examples. Existing exported files and server copies are separate.",
                       );
                     })
                   }
