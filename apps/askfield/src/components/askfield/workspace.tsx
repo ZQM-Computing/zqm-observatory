@@ -55,6 +55,7 @@ export function Workspace() {
   const [showBuffer, setShowBuffer] = useState(true);
   const [history, setHistory] = useState<string[]>([]);
   const uploadRead = useRef(0);
+  const answerRevision = useRef(0);
 
   useEffect(() => {
     if (!layersOpen) return;
@@ -99,6 +100,7 @@ export function Workspace() {
   function ask(text: string) {
     const q = text.trim();
     if (q.length < 3 || q.length > 500) return;
+    answerRevision.current++;
     setQuestion(q);
     setDraft("");
     setBanner(null);
@@ -120,6 +122,7 @@ export function Workspace() {
   async function readFile(file: File) {
     clearUpload();
     const reading = uploadRead.current;
+    const answerAtStart = answerRevision.current;
     setLayersOpen(true);
     if (file.size > MAX_FILE_BYTES) {
       setDiagnostics([{ level: "warn", text: "Files over 2 MB are not read." }]);
@@ -131,7 +134,7 @@ export function Workspace() {
       setUpload(parsed.points);
       setDiagnostics(parsed.diagnostics);
       setUploadName(file.name);
-      if (parsed.points.length) {
+      if (parsed.points.length && answerAtStart === answerRevision.current) {
         setQuestion("Show my uploaded points");
         applyResult(run({ kind: "show", layers: ["upload"] }, { upload: parsed.points }));
       }
@@ -355,7 +358,7 @@ export function Workspace() {
             </div>
             <ul className="mt-5 flex flex-col gap-2">
               {LAYER_TOGGLES.map((layer) => {
-                const available = present.has(layer.id) || (layer.id === "upload" && upload.length > 0);
+                const available = present.has(layer.id);
                 const off = hidden.includes(layer.id);
                 return (
                   <li key={layer.id}>

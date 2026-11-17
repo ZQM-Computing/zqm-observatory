@@ -169,3 +169,51 @@ test("location guards validate complete phrases and preserve supported locations
     assert.ok(interpret(q), q);
   }
 });
+
+test("park gaps export only matches, including empty results", () => {
+  for (const radiusM of [50, 800, 100000]) {
+    const result = run({ kind: "park_child_gap", radiusM }, { upload: [] });
+    if (radiusM === 100000) assert.equal(result.rows.length, 0);
+    assert.equal(JSON.parse(resultGeoJSON(result, "Park gaps")).features.length, result.rows.length);
+  }
+});
+
+test("polygon exports retain all matching uploaded points", () => {
+  const zone = neighborhoods.find((n) => pointInRing([-71.4205, 41.8225], n.ring))!;
+  const upload = Array.from({ length: 20 }, (_, i) => ({ id: `upload-${i}`, name: `Point ${i}`, lon: -71.4205, lat: 41.8225, props: {} }));
+  const result = run({ kind: "points_in_zone", subject: "upload", zoneId: zone.id }, { upload });
+  assert.equal(result.rows.length, 20);
+  assert.equal(JSON.parse(resultGeoJSON(result, "Points in zone")).features.length, 20);
+  for (const point of upload) assert.ok(resultCSV(result, "Points in zone").includes(`${point.id},`));
+});
+
+test("meter abbreviations and invalid distances retain threshold semantics", () => {
+  assert.deepEqual(interpret("Show customers within 500 m of the warehouse"), { kind: "customers_near_warehouse", meters: 500, note: null });
+  for (const unit of ["m", "km", "meters", "mi"]) {
+    for (const amount of ["0", "-1", "0.001"]) assert.equal(interpret(`Show customers within ${amount} ${unit} of the warehouse`), null);
+  }
+  assert.equal(interpret("Clinics at most 500 m from the warehouse"), null);
+});
+
+test("population threshold prefixes do not become age tokens", () => {
+  assert.deepEqual(interpret("Which neighborhoods have population over 6500?"), { kind: "neighborhoods_where", field: "pop", op: "gt", value: 6500 });
+  assert.equal(tryAnswer("Which neighborhoods have population over 6500?", { upload: [] })!.rows.length, neighborhoods.filter((n) => n.pop > 6500).length);
+  assert.deepEqual(interpret("Rank neighborhoods by residents over 65"), { kind: "rank_neighborhoods", field: "pop65", dir: "desc" });
+});
+
+test("senior proximity requests decline instead of reversing the comparison", () => {
+  for (const relation of ["within", "less than", "closer than"]) assert.equal(interpret(`Which neighborhoods have the highest senior share ${relation} 1 km of the nearest clinic?`), null);
+  assert.equal(interpret(EXAMPLES[0].question)!.kind, "senior_clinic_gap");
+});
+
+test("terminal punctuation preserves locations and decimal distances", () => {
+  assert.deepEqual(interpret("Show clinics in Downtown."), interpret("Show clinics in Downtown"));
+  assert.ok(interpret("Show clinics in Downtown."));
+  assert.equal(interpret("Show clinics in Downtown Boston."), null);
+  assert.deepEqual(interpret("Show customers within 1.5 km of the warehouse."), { kind: "customers_near_warehouse", meters: 1500, note: null });
+});
+
+test("near neighborhoods rank closest first", () => {
+  assert.deepEqual(interpret("Show neighborhoods near the warehouse"), { kind: "zone_distance", target: "warehouse", dir: "asc" });
+  assert.deepEqual(tryAnswer("Show neighborhoods near the warehouse", { upload: [] }), tryAnswer("Show neighborhoods nearest to the warehouse", { upload: [] }));
+});

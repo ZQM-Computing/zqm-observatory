@@ -88,11 +88,11 @@ function normalize(raw: string): string {
 
 function extractDistance(q: string): { meters: number; note: string | null } | null {
   const m = q.match(
-    /(\d+(?:\.\d+)?)\s*(kilometers|kilometer|km|meters|meter|miles|mile|mi|minutes|minute|min)\b/,
+    /(\d+(?:\.\d+)?)\s*(kilometers|kilometer|km|meters|meter|miles|mile|mi|minutes|minute|min|m)\b/,
   );
   if (!m) return null;
   const n = Number(m[1]);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  // Preserve zero and overflow so interpret can reject an invalid distance.
   const u = m[2];
   if (u.startsWith("km") || u.startsWith("kilometer")) return { meters: n * 1000, note: null };
   if (u === "mi" || u === "mile" || u === "miles") return { meters: n * 1609.344, note: null };
@@ -107,9 +107,9 @@ function extractDistance(q: string): { meters: number; note: string | null } | n
 
 function extractPlainNumber(q: string): number | null {
   const cleaned = q
-    .replace(/over\s*65\+?|65\s*\+|age\s*65|residents\s*65|older than\s*65/g, " ")
+    .replace(/over\s*65\b\+?|\b65\s*\+|age\s*65\b|residents\s*65\b|older than\s*65\b/g, " ")
     .replace(
-      /(\d+(?:\.\d+)?)\s*(kilometers|kilometer|km|meters|meter|miles|mile|mi|minutes|minute|min)\b/g,
+      /(\d+(?:\.\d+)?)\s*(kilometers|kilometer|km|meters|meter|miles|mile|mi|minutes|minute|min|m)\b/g,
       " ",
     );
   const k = cleaned.match(/(\d+(?:\.\d+)?)\s*k\b/);
@@ -124,7 +124,7 @@ function detectField(q: string): NbhdField | null {
   if (/broadband|internet/.test(q)) return "broadband";
   if (/income|wealth|poverty|affluent|low-income|low income/.test(q)) return "medianIncome";
   if (/child|kid|youth/.test(q)) return share ? "shareChildren" : "children";
-  if (/65|senior|elder|older/.test(q)) return share ? "share65" : "pop65";
+  if (/\b65\b|senior|elder|older/.test(q)) return share ? "share65" : "pop65";
   if (/population|populous|residents/.test(q)) return "pop";
   return null;
 }
@@ -156,7 +156,7 @@ export function interpret(raw: string): Intent | null {
   if (q.length < 3 || q.length > 500) return null;
   // These need capabilities or boundary semantics absent from this demo.
   if (/\b(minutes?|mins?|drive|driving|walking|walk|route|routing|road|traffic|density|census|safe|safety|accessible|accessibility|open now|live|current|real[- ]time|volusia|daytona|deland)\b/.test(q)) return null;
-  if (/\bat (least|most)\b/.test(q) && /\b(km|kilometers?|meters?|miles?|mi)\b/.test(q)) return null;
+  if (/\bat (least|most)\b/.test(q) && /\b(km|kilometers?|meters?|miles?|mi|m)\b/.test(q)) return null;
   if (/\b(between|except|not|isn't|aren't|and|or)\b/.test(q)) {
     const cleaned = q.replace(/and (?:are )?(?:more than|color them by order volume)/g, "");
     if (/\b(between|except|not|isn't|aren't|and|or)\b/.test(cleaned)) return null;
@@ -168,7 +168,7 @@ export function interpret(raw: string): Intent | null {
   const zone = matchZone(q);
   // Validate the whole location phrase: "Downtown Boston" is not our Downtown.
   for (const location of q.matchAll(/\b(in|near)\s+(.+?)(?=\s+(?:within|more than|less than|from|with|for|and|by)\b|$)/g)) {
-    const place = location[2].replace(/^the /, "");
+    const place = location[2].replace(/^the /, "").replace(/[.]+$/, "");
     const knownZone = neighborhoods.some((n) => place === n.name.toLowerCase());
     const knownArea = /^(sample|providence|each neighborhood|park coverage|clinic coverage)$/.test(place);
     const knownTarget = location[1] === "near" && /^(?:nearest )?(clinics?|health centers?|doctors?|hospitals?|parks?|green spaces?|playgrounds?|customers?|delivery stops?|stops?|warehouse|depot|my points|my locations|my sites|uploaded points)$/.test(place);
@@ -219,7 +219,7 @@ export function interpret(raw: string): Intent | null {
     let demand: "seniors" | "children" | "low_income" = supply === "parks" ? "children" : "seniors";
     if (/child|kid/.test(q)) demand = "children";
     if (/income|equity|poverty|poor|low-income|low income/.test(q)) demand = "low_income";
-    if (/senior|65|elder|older/.test(q)) demand = "seniors";
+    if (/senior|\b65\b|elder|older/.test(q)) demand = "seniors";
     return { kind: "coverage_new_site", demand, supply };
   }
 
@@ -231,10 +231,11 @@ export function interpret(raw: string): Intent | null {
   }
 
   if (
-    /65|senior|elder|older/.test(q) &&
+    /\b65\b|senior|elder|older/.test(q) &&
     /clinic|health|doctor|care/.test(q) &&
     (/far|gap|access|beyond|more than|nearest|from|outside/.test(q) || distance)
   ) {
+    if (wantsWithin) return null;
     return {
       kind: "senior_clinic_gap",
       minMeters: clampMeters(distance?.meters ?? 1000),
@@ -277,7 +278,7 @@ export function interpret(raw: string): Intent | null {
     /neighborhood/.test(q) &&
     (wantsFar || wantsNear || wantsBeyond || wantsWithin) &&
     (kinds.includes("clinics") || kinds.includes("parks") || kinds.includes("warehouse")) &&
-    !/65|senior|child|kid/.test(q)
+    !/\b65\b|senior|child|kid/.test(q)
   ) {
     // This operation ranks centroids; threshold filtering is unsupported.
     if (distance) return null;
@@ -286,7 +287,7 @@ export function interpret(raw: string): Intent | null {
       : kinds.includes("warehouse")
         ? "warehouse"
         : "clinics";
-    return { kind: "zone_distance", target, dir: wantsNear && !wantsFar && !wantsBeyond ? "asc" : "desc" };
+    return { kind: "zone_distance", target, dir: (wantsNear || wantsWithin) && !wantsFar && !wantsBeyond ? "asc" : "desc" };
   }
 
   const pointKinds = kinds.filter((k) => k !== "upload");

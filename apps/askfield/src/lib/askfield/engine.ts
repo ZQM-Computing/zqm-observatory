@@ -595,7 +595,7 @@ function parkGap(radiusM: number): QueryResult {
       id: `plink-${i}`,
       coordinates: [s.n.center, [s.park.lon, s.park.lat]] as LonLat[],
     }));
-  const list = gaps.length ? gaps : scored.filter((s) => s.high).sort((a, b) => b.meters - a.meters);
+  const list = gaps;
   const bar = bars(list.map((s) => s.n.shareChildren));
   const extra: Record<string, string> = {};
   for (const s of scored) {
@@ -1006,7 +1006,7 @@ function pointsInZone(zoneId: string, subject: PointKind, ctx: Context): QueryRe
       { title: "Count", detail: `${inside.length} of ${pts.length} ${subject} are inside.` },
     ],
     sources: [SOURCE_NBHD, SOURCE_DIST],
-    rows: inside.slice(0, 12).map((p) => ({
+    rows: inside.map((p) => ({
       id: p.id,
       name: p.name,
       primary: p.detail || subject,

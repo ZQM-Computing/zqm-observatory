@@ -356,6 +356,11 @@ input:focus-visible {
   cursor: pointer;
 }
 
+.dropzone:focus-within {
+  outline: 2px solid var(--color-pine);
+  outline-offset: 3px;
+}
+
 .answer-in {
   animation: rise 400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
