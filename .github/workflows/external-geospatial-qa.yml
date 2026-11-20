@@ -52,8 +52,12 @@ jobs:
           persist-credentials: false
       - name: Install GDAL runtime
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y gdal-bin python3-gdal
+          elevate=()
+          if [ "$(id -u)" -ne 0 ]; then
+            elevate=(sudo)
+          fi
+          "${elevate[@]}" apt-get update
+          "${elevate[@]}" apt-get install --no-install-recommends -y gdal-bin python3-gdal
       - name: Run pinned external QA twice against synthetic fixture
         run: |
           /usr/bin/python3 scripts/run_qgis_dataset_qa_handoff.py \
