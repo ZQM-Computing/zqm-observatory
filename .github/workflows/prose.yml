@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   markdownlint:
+    timeout-minutes: 30
     runs-on: [self-hosted, Linux, X64, zqm-linux]
     defaults:
       run:
@@ -23,6 +24,7 @@ jobs:
           globs: '**/*.md'
 
   links:
+    timeout-minutes: 30
     name: Link check
     runs-on: [self-hosted, Linux, X64, zqm-linux]
     steps:
