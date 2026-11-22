@@ -26,6 +26,7 @@ concurrency:
 
 jobs:
   contract-tests:
+    timeout-minutes: 30
     runs-on: [self-hosted, Linux, X64, zqm-linux]
     steps:
       - uses: actions/checkout@v4
