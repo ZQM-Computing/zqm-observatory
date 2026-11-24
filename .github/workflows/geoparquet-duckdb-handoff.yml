@@ -77,4 +77,4 @@ jobs:
           name: geoparquet-duckdb-handoff
           path: build/geoparquet-duckdb-handoff/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1

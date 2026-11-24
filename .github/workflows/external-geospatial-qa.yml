@@ -72,4 +72,4 @@ jobs:
           name: qgis-dataset-qa-handoff
           path: build/qgis-dataset-qa-handoff/
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
