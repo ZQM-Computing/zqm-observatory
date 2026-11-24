@@ -72,6 +72,7 @@ jobs:
           python scripts/run_geoparquet_duckdb_handoff.py             --fixture tests/fixtures/synthetic-places.geojson             --output-dir build/geoparquet-duckdb-handoff             --geoparquet-commit 4433a6e561659e880d9e59529159ac4fe1d9c6fe             --duckdb-commit a38e038d2d02eb83b4b94690af7f9d4c885902ea
       - name: Upload reproducible handoff evidence
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: geoparquet-duckdb-handoff
           path: build/geoparquet-duckdb-handoff/

@@ -89,6 +89,7 @@ jobs:
           JSON
       - name: Upload reproducible RLS handoff evidence
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: observatory-postgis-rls-cookbook-handoff
           path: build/postgis-rls-cookbook-handoff/

@@ -85,6 +85,7 @@ jobs:
             --cookbook-commit eda8d7ab9379d1c43f55666260ad693868137537
       - name: Upload reproducible PostGIS handoff evidence
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: postgis-handoff
           path: build/postgis-handoff/

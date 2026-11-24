@@ -67,6 +67,7 @@ jobs:
             --producer-commit 40bf07d435281e46099eb028b1b1a9258cba87ef
       - name: Upload reproducible handoff evidence
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: qgis-dataset-qa-handoff
           path: build/qgis-dataset-qa-handoff/
