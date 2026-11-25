@@ -41,9 +41,9 @@ jobs:
           --health-timeout 5s
           --health-retries 12
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Check out pinned PostGIS cookbook
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ZQM-Computing/postgis-cookbook
           ref: eda8d7ab9379d1c43f55666260ad693868137537
@@ -88,7 +88,7 @@ jobs:
           }
           JSON
       - name: Upload reproducible RLS handoff evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         continue-on-error: true
         with:
           name: observatory-postgis-rls-cookbook-handoff
