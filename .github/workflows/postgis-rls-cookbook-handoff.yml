@@ -34,7 +34,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U postgres -d observatory"
           --health-interval 10s
@@ -53,7 +53,7 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+          psql -v ON_ERROR_STOP=1 -h localhost -p ${{ job.services.postgis.ports[5432] }} -U postgres -d observatory \
             -f tests/fixtures/postgis-rls-seed.sql
       - name: Run pinned cookbook row-level security pattern as non-superuser
         env:
@@ -61,7 +61,7 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build/postgis-rls-cookbook-handoff
-          psql -v ON_ERROR_STOP=1 -h localhost -U patterns -d observatory \
+          psql -v ON_ERROR_STOP=1 -h localhost -p ${{ job.services.postgis.ports[5432] }} -U patterns -d observatory \
             -f support/postgis-cookbook/patterns/07_row_level_security.sql \
             | tee build/postgis-rls-cookbook-handoff/pattern-output.txt
       - name: Verify cleanup and fixture integrity
@@ -69,7 +69,7 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -o pipefail
-          psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d observatory \
+          psql -v ON_ERROR_STOP=1 -h localhost -p ${{ job.services.postgis.ports[5432] }} -U postgres -d observatory \
             -f tests/fixtures/postgis-rls-verify-cleanup.sql \
             | tee build/postgis-rls-cookbook-handoff/cleanup-verification.txt
           cat > build/postgis-rls-cookbook-handoff/manifest.json <<'JSON'
