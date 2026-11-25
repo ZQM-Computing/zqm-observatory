@@ -47,7 +47,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - 5432
         options: >-
           --health-cmd "pg_isready -U postgres -d observatory_ci"
           --health-interval 10s
@@ -73,7 +73,7 @@ jobs:
       - name: Load synthetic fixture and execute pinned cookbook RLS pattern
         env:
           PGHOST: localhost
-          PGPORT: "5432"
+          PGPORT: "${{ job.services.postgres.ports[5432] }}"
           PGDATABASE: observatory_ci
           PGUSER: postgres
           PGPASSWORD: postgres
