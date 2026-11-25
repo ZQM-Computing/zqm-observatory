@@ -31,8 +31,8 @@ jobs:
     timeout-minutes: 30
     runs-on: [self-hosted, Linux, X64, zqm-linux]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
       - name: Test adapter contracts without GDAL or network
@@ -42,9 +42,9 @@ jobs:
     runs-on: [self-hosted, Linux, X64, zqm-linux]
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Check out pinned qgis-resources implementation
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           repository: ZQM-Computing/qgis-resources
           ref: 40bf07d435281e46099eb028b1b1a9258cba87ef
@@ -66,7 +66,7 @@ jobs:
             --output-dir build/qgis-dataset-qa-handoff \
             --producer-commit 40bf07d435281e46099eb028b1b1a9258cba87ef
       - name: Upload reproducible handoff evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         continue-on-error: true
         with:
           name: qgis-dataset-qa-handoff
